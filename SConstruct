@@ -17,6 +17,7 @@ if not env.GetOption('clean'):
     env = conf.Finish()
 
 SOURCE=Split(
+    'src/ev.cc '
     'src/header.cc '
     'src/log.cc '
 )

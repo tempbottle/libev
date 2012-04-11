@@ -6,8 +6,8 @@
 * @version
 *
 */
-#ifndef HEADER_H
-#define HEADER_H
+#ifndef LIBEV_HEADER_H
+#define LIBEV_HEADER_H
 
 /************************************************************************/
 /*C headers*/
@@ -31,7 +31,6 @@
 #include <syslog.h>
 #include <signal.h>
 #include <fcntl.h>
-#include <poll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -41,7 +40,6 @@
 #include <net/if.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <sys/select.h>
 #include <sys/epoll.h>
 #include <sys/uio.h>
 #include <sys/un.h>
@@ -135,4 +133,12 @@ inline int eventfd(unsigned int initval, int flags)
 }
 #endif/*HAVE_SYS_EVENTFD*/
 
-#endif/*HEADER_H*/
+inline int safe_close(int fd)
+{
+  int ret;
+  do ret = close(fd);
+  while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+#endif
