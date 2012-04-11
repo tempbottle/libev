@@ -43,10 +43,20 @@ void test3()
   log.Printf(kDebug, "kDebug");
 }
 
+void test4()
+{
+  Log log(kDebug, kStdout | kSysLog | kLogFile, 0, 0);
+  log.Printf(kAlert, "kAlert");
+  log.Printf(kError, "kError");
+  log.Printf(kInfo, "kInfo");
+  log.Printf(kDebug, "kDebug");
+}
+
 int main()
 {
   test1();
   test2();
   test3();
+  test4();
   return 0;
 }

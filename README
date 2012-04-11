@@ -3,4 +3,4 @@ A Socket/Timer/Signal Event Library for C++
 Author:
 zhangyafeikimi
 
-This is my experiment, and in my opinion, libev is only a toy for study.
+This is my experiment project. In my opinion, libev is only a toy for study.

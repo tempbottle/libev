@@ -21,10 +21,10 @@ SOURCE=Split(
     'src/log.cc '
 )
 
-env.Append(CCFLAGS = ' -Wall -g -O2')
+env.Append(CCFLAGS = ' -Wall -g')
 env.Append(LIBS = [File('libev.a')])
 
 env.StaticLibrary('ev', SOURCE)
 
-env.Program('log_test',                  'src/log_test.cc')
+env.Program('log_test', 'src/log_test.cc')
 

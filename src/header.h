@@ -23,6 +23,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <stddef.h>
 #include <limits.h>
 #include <errno.h>
 #include <time.h>
@@ -133,13 +134,5 @@ inline int eventfd(unsigned int initval, int flags)
   return syscall(SYS_eventfd, initval, flags);
 }
 #endif/*HAVE_SYS_EVENTFD*/
-
-
-/************************************************************************/
-/*C++ headers*/
-/************************************************************************/
-#if defined __cplusplus
-# include <string>
-#endif
 
 #endif/*HEADER_H*/
