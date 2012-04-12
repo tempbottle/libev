@@ -19,13 +19,16 @@ if not env.GetOption('clean'):
 SOURCE=Split(
     'src/ev.cc '
     'src/header.cc '
+    'src/interrupter.cc '
     'src/log.cc '
 )
 
 env.Append(CCFLAGS = ' -Wall -g')
-env.Append(LIBS = [File('libev.a')])
+env.Append(LIBS = [File('libev.a'), 'pthread'])
 
 env.StaticLibrary('ev', SOURCE)
 
-env.Program('log_test', 'src/log_test.cc')
+env.Program('log_test',                 'src/log_test.cc')
+env.Program('interrupter_test',         'src/interrupter_test.cc')
+env.Program('signal_test',              'src/signal_test.cc')
 

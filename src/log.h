@@ -4,6 +4,7 @@
 * @date
 * @version
 *
+* external header
 */
 #ifndef LIBEV_LOG_H
 #define LIBEV_LOG_H
@@ -40,7 +41,7 @@ namespace libev {
   public:
     // If 'flags' & kFile is non-zero, 'logfile' will be the filename of output log
     // If 'flags' & kSysLog is non-zero, 'syslog_ident' will be used to 'openlog'
-    Log(int level, int flags, const char * logfile = 0, const char * syslog_ident = 0);
+    Log(int level, int flags, const char * logfile = 0, const char * syslog_ident = 0);// may throw
     ~Log();
     // return -1, the message is not logged for internal reasons
     // return 0, the message is not logged for 'level'
@@ -49,6 +50,36 @@ namespace libev {
     int GetLevel()const;
     void SetLevel(int level);
   };
+
+  void InitGlobalLog(int level = kDebug, int flags = kStderr,
+    const char * logfile = 0, const char * syslog_ident = 0);// may throw
+  void UnInitGlobalLog();
+  Log& GlobalLog();
 }
+
+#define EV_LOG(level, format, args...) do { \
+  GlobalLog().Printf(level, "[%s:%d] "format, __FILE__, __LINE__, ##args); \
+} while(0)
+
+#if defined NDEBUG
+# define EV_ASSERT(exp) ((void)0)
+#else
+# define EV_ASSERT(exp) do { \
+  if (!(exp)) \
+  { \
+    GlobalLog().Printf(kError, "[%s:%d] expression(%s) failed", __FILE__, __LINE__, #exp); \
+    abort(); \
+  } \
+} while(0)
+#endif
+
+#define EV_VERIFY(exp) do { \
+  if (!(exp)) \
+  { \
+    GlobalLog().Printf(kError, "[%s:%d] expression(%s) failed", __FILE__, __LINE__, #exp); \
+    abort(); \
+  } \
+} while(0)
+
 
 #endif

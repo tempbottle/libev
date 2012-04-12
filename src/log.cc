@@ -6,6 +6,7 @@
 *
 */
 #include "log.h"
+#include "scoped_ptr.h"
 #include "header.h"
 
 namespace libev {
@@ -42,7 +43,7 @@ namespace libev {
 
   public:
     Impl(int level, int flags, const char * logfile, const char * syslog_ident)
-      :level_(level), flags_(flags), fp_(0)
+      :level_(level), flags_(flags), fp_(NULL)
     {
       if (flags_ & kSysLog)
       {
@@ -122,7 +123,7 @@ namespace libev {
     if (impl_->GetLevel() < level)
       return 0;
 
-    char buf[32768], * p = buf, * large_buf = 0;
+    char buf[32768], * p = buf, * large_buf = NULL;
     int buf_size = sizeof(buf);
     int bytes_left = buf_size;
     int n;
@@ -131,7 +132,7 @@ namespace libev {
     struct tm tm_s;
 
 
-    gettimeofday(&tv, 0);
+    gettimeofday(&tv, NULL);
     localtime_r(&tv.tv_sec, &tm_s);
 
     for (;;)
@@ -172,7 +173,7 @@ extend_buf:
       if (large_buf)
         free(large_buf);
       large_buf = static_cast<char *>(malloc(buf_size));
-      if (large_buf == 0)
+      if (large_buf == NULL)
         goto format_error;
 
       p = large_buf;
@@ -208,5 +209,27 @@ format_error:
   void Log::SetLevel(int level)
   {
     impl_->SetLevel(level);
+  }
+
+
+  static ScopedPtr<Log> s_log;
+
+  void InitGlobalLog(int level, int flags,
+    const char * logfile, const char * syslog_ident)
+  {
+    s_log.reset(new Log(level, flags, logfile, syslog_ident));
+  }
+
+  void UnInitGlobalLog()
+  {
+    s_log.reset();
+  }
+
+  Log& GlobalLog()
+  {
+    if (!s_log)
+      InitGlobalLog();
+
+    return *s_log;
   }
 }

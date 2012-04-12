@@ -29,8 +29,10 @@
 #include <time.h>
 #include <sys/time.h>
 #include <syslog.h>
+#include <pthread.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -44,6 +46,16 @@
 #include <sys/uio.h>
 #include <sys/un.h>
 
+/************************************************************************/
+/*some useful and short inline functions*/
+/************************************************************************/
+inline int safe_close(int fd)
+{
+  int ret;
+  do ret = close(fd);
+  while (ret == -1 && errno == EINTR);
+  return ret;
+}
 
 /************************************************************************/
 /*including or declarations of eventfd, signalfd, timerfd API*/
@@ -83,7 +95,15 @@ inline int signalfd(int fd, const sigset_t *mask, int flags)
 # if defined SYS_signalfd4
   return syscall(SYS_signalfd4, fd, mask, _NSIG/8, flags);
 # else
-  return syscall(SYS_signalfd, fd, mask, _NSIG/8);
+  fd = syscall(SYS_signalfd, fd, mask, _NSIG/8);
+  if (fd == -1)
+    return -1;
+
+  if (flags & SFD_NONBLOCK)
+    fcntl(fd, F_SETFL, O_NONBLOCK);
+  if (flags & SFD_CLOEXEC)
+    fcntl(fd, F_SETFD, FD_CLOEXEC);
+  return fd;
 # endif
 }
 #endif/*HAVE_SYS_SIGNALFD*/
@@ -129,16 +149,26 @@ enum
 
 inline int eventfd(unsigned int initval, int flags)
 {
-  return syscall(SYS_eventfd, initval, flags);
+# if defined SYS_eventfd2
+  return syscall(SYS_eventfd2, initval, flags);
+# else
+  int fd = syscall(SYS_eventfd, initval);
+  if (fd == -1)
+    return -1;
+
+  if ((flags & EFD_NONBLOCK) && fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
+  {
+    safe_close(fd);
+    return -1;
+  }
+  if ((flags & EFD_CLOEXEC) && fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+  {
+    safe_close(fd);
+    return -1;
+  }
+  return fd;
+# endif
 }
 #endif/*HAVE_SYS_EVENTFD*/
-
-inline int safe_close(int fd)
-{
-  int ret;
-  do ret = close(fd);
-  while (ret == -1 && errno == EINTR);
-  return ret;
-}
 
 #endif
