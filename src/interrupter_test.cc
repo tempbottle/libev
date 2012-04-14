@@ -53,16 +53,18 @@ int main()
 
   for (i=0; i<times; i++)
   {
-    printf("waiting\n");
+    EV_LOG(kInfo, "waiting");
     result = epoll_wait(epfd, &event, 1, -1);
     if (result == -1 && errno == EINTR)
       continue;
 
     EV_VERIFY(result == 1);
     EV_VERIFY(event.data.fd == inter.fd());
-    printf("interrupted\n");
+    EV_LOG(kInfo, "interrupted");
     inter.Reset();
   }
+
+  EV_LOG(kInfo, "quit");
 
   result = pthread_join(tid, NULL);
   EV_VERIFY(result == 0);

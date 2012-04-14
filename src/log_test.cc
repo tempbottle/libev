@@ -10,7 +10,7 @@
 
 using namespace libev;
 
-void test1()
+static void Test1()
 {
   Log log(kDebug, kStdout);
   log.Printf(kAlert, "kAlert");
@@ -26,7 +26,7 @@ void test1()
   log.Printf(kDebug, "kDebug(assert not printed)");
 }
 
-void test2()
+static void Test2()
 {
   Log log(kDebug, kSysLog, NULL, "log_test");
   log.Printf(kAlert, "kAlert");
@@ -35,7 +35,7 @@ void test2()
   log.Printf(kDebug, "kDebug");
 }
 
-void test3()
+static void Test3()
 {
   Log log(kDebug, kLogFile, "log_test.log", NULL);
   log.Printf(kAlert, "kAlert");
@@ -44,7 +44,7 @@ void test3()
   log.Printf(kDebug, "kDebug");
 }
 
-void test4()
+static void Test4()
 {
   Log log(kDebug, kStdout | kSysLog | kLogFile, NULL, NULL);
   log.Printf(kAlert, "kAlert");
@@ -53,7 +53,7 @@ void test4()
   log.Printf(kDebug, "kDebug");
 }
 
-void test5()
+static void Test5()
 {
   EV_LOG(kDebug, "printed by EV_LOG");
   EV_LOG(kDebug, "printed by EV_LOG2 %d", 666);
@@ -62,10 +62,10 @@ void test5()
 
 int main()
 {
-  test1();
-  test2();
-  test3();
-  test4();
-  test5();
+  Test1();
+  Test2();
+  Test3();
+  Test4();
+  Test5();
   return 0;
 }

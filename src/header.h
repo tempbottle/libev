@@ -1,6 +1,6 @@
 /** @file
-* @brief include all external headers,
-*        declare eventfd, signalfd, timerfd API
+* @brief include required system headers,
+*        declare and implement eventfd, signalfd, timerfd API if needed
 * @author zhangyafeikimi@gmail.com
 * @date
 * @version

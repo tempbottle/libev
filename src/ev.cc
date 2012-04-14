@@ -24,15 +24,15 @@ namespace libev {
 
     if (flags & kEvErr)
     {
-      EV_LOG(kError, "kEvErr must not be set");
       errno = EINVAL;
+      EV_LOG(kError, "kEvErr must not be set");
       return kEvFailure;
     }
 
     if (flags & kEvCanceled)
     {
-      EV_LOG(kError, "kEvCanceled must not be set");
       errno = EINVAL;
+      EV_LOG(kError, "kEvCanceled must not be set");
       return kEvFailure;
     }
 
@@ -42,14 +42,14 @@ namespace libev {
 
     if (count > 1)
     {
-      EV_LOG(kError, "kEvIO, kEvSignal, kEvTimer are mutual exclusive");
       errno = EINVAL;
+      EV_LOG(kError, "kEvIO, kEvSignal, kEvTimer are mutual exclusive");
       return kEvFailure;
     }
     else if (count < 1)
     {
-      EV_LOG(kError, "No valid event flags is set");
       errno = EINVAL;
+      EV_LOG(kError, "No valid event flags is set");
       return kEvFailure;
     }
     else
@@ -63,6 +63,7 @@ namespace libev {
   {
     kInAllList = 0x01,
     kInActiveList = 0x02,
+    kInCallback = 0x04,
   };
 
   struct EventInternal
@@ -82,7 +83,7 @@ namespace libev {
       EV_ASSERT(parent);
     }
 
-    bool IsInList()const
+    int IsInList()const
     {
       return flags & kInAllList;
     }
@@ -103,7 +104,7 @@ namespace libev {
       flags &= ~kInAllList;
     }
 
-    bool IsActive()const
+    int IsActive()const
     {
       return flags & kInActiveList;
     }
@@ -153,8 +154,46 @@ namespace libev {
     List sig_ev_;
     List active_sig_ev_;
     Interrupter interrupter_;
+    int sig_ev_refcount_[_NSIG];
 
   private:
+    void AddSignalRef(int signum)
+    {
+      EV_ASSERT(sig_ev_refcount_[signum] >= 0);
+
+      if (sig_ev_refcount_[signum] == 0)
+      {
+        sigaddset(&sigset_, signum);
+        EV_VERIFY(signalfd(sigfd_, &sigset_, SFD_CLOEXEC|SFD_NONBLOCK) != -1);
+
+        sigset_t tmp_sigset;
+        sigemptyset(&tmp_sigset);
+        sigaddset(&tmp_sigset, signum);
+        EV_VERIFY(sigprocmask(SIG_BLOCK, &tmp_sigset, NULL) == 0);
+
+        EV_LOG(kDebug, "Signal(%d) has been blocked and added", signum);
+      }
+      sig_ev_refcount_[signum]++;
+    }
+
+    void ReleaseSignalRef(int signum)
+    {
+      EV_ASSERT(sig_ev_refcount_[signum] > 0);
+
+      if (--sig_ev_refcount_[signum] == 0)
+      {
+        sigdelset(&sigset_, signum);
+        EV_VERIFY(signalfd(sigfd_, &sigset_, SFD_CLOEXEC|SFD_NONBLOCK) != -1);
+
+        sigset_t tmp_sigset;
+        sigemptyset(&tmp_sigset);
+        sigaddset(&tmp_sigset, signum);
+        EV_VERIFY(sigprocmask(SIG_UNBLOCK, &tmp_sigset, NULL) == 0);
+
+        EV_LOG(kDebug, "Signal(%d) has been unblocked and deleted", signum);
+      }
+    }
+
     // cancel all events
     void CancelAll()
     {
@@ -191,23 +230,43 @@ namespace libev {
       EV_ASSERT(internal);
       EV_ASSERT(internal->IsInList());
 
-      EV_LOG(kDebug, "Signal Event(%p)'s callback is to be invoked", ev);
+      //EV_LOG(kDebug, "Signal Event(%p)'s callback is to be invoked", ev);
+      int perist_before = ev->event & kEvPersist;
+      internal->real_event |= kInCallback;
       ev->callback(ev->fd, internal->real_event, ev->user_data);
+      internal->real_event &= ~kInCallback;
+      int perist_after = ev->event & kEvPersist;
       internal->sig_times--;
-      EV_LOG(kDebug, "Signal Event(%p)'s callback has been invoked", ev);
+      //EV_LOG(kDebug, "Signal Event(%p)'s callback has been invoked", ev);
 
-      if (!(internal->real_event & kEvPersist)
-        || (internal->real_event & kEvCanceled))
+      int still_in_list = internal->IsInList();
+      int remove_persist = (perist_before && !perist_after);
+      int unpersist = !(internal->real_event & kEvPersist);
+      int canceled = (internal->real_event & kEvCanceled);
+
+      if (!still_in_list || remove_persist || unpersist || canceled)
       {
-        internal->DelFromList(&sig_ev_);
-        EV_LOG(kDebug, "Signal Event(%p) is not valid any more", ev);
+        if (still_in_list)
+          internal->DelFromList(&sig_ev_);
+
+        if (!still_in_list)
+          EV_LOG(kDebug, "Signal Event(%p) has been canceled by user inside its callback", ev);
+        else if (remove_persist)
+          EV_LOG(kDebug, "Signal Event(%p)'s kEvPersist is turned off by user", ev);
+        else if (unpersist)
+          EV_LOG(kDebug, "Signal Event(%p) has no kEvPersist", ev);
+        else if (canceled)
+          EV_LOG(kDebug, "Signal Event(%p) has been canceled", ev);
+
+        ReleaseSignalRef(ev->fd);
+
         return;
       }
 
       if (internal->sig_times)
       {
         internal->AddToActive(&active_sig_ev_);
-        EV_LOG(kDebug, "Signal Event(%p) is still active", ev);
+        EV_LOG(kDebug, "Signal Event(%p) is still active, times=%d", ev, internal->sig_times);
       }
     }
 
@@ -279,16 +338,22 @@ namespace libev {
             return number;
         }
 
+        if (sig_ev_.empty())
+        {
+          EV_LOG(kDebug, "Signal event loop quits for no events");
+          return number;
+        }
+
         result = GetReadability(0);
         if (result == -1)
+        {
+          EV_LOG(kDebug, "Signal event loop quits for an interruption");
           return number;
+        }
         else if (result == 1)
           OnReadable();
         else
-        {
-          if (sig_ev_.empty())
-            return number;
-        }
+          EV_ASSERT(0);
       }
     }
 
@@ -323,6 +388,9 @@ namespace libev {
         return kEvFailure;
       }
 
+      for (int i=0; i<_NSIG; i++)
+        sig_ev_refcount_[i] = 0;
+
       return kEvOK;
     }
 
@@ -343,12 +411,7 @@ namespace libev {
     int Add(Event * ev)
     {
       EV_ASSERT(ev);
-
-      int result;
-      result = CheckInputEventFlag(ev->event);
-      if (result != kEvOK)
-        return result;
-
+      EV_ASSERT(CheckInputEventFlag(ev->event) == kEvOK);
       EV_ASSERT(ev->event & kEvSignal);
       EV_ASSERT(ev->callback);
 
@@ -367,23 +430,7 @@ namespace libev {
         ev->internal->sig_times = 0;
       }
 
-      int signum = ev->fd;
-      int sigfd;
-      sigaddset(&sigset_, signum);
-      sigfd = signalfd(sigfd_, &sigset_, SFD_CLOEXEC|SFD_NONBLOCK);
-      if (sigfd == -1)
-      {
-        sigdelset(&sigset_, signum);
-        EV_LOG(kError, "signalfd: %s", strerror(errno));
-        return kEvFailure;
-      }
-      EV_ASSERT(sigfd == sigfd_);
-
-      sigset_t tmp_sigset;
-      sigemptyset(&tmp_sigset);
-      sigaddset(&tmp_sigset, signum);
-      EV_VERIFY(sigprocmask(SIG_BLOCK, &tmp_sigset, NULL) == 0);
-
+      AddSignalRef(ev->fd);
       ev->internal->AddToList(&sig_ev_);
       EV_LOG(kDebug, "Signal Event(%p) has been added", ev);
       return kEvOK;
@@ -400,35 +447,27 @@ namespace libev {
         return kEvNotExists;
       }
 
-      int signum = ev->fd;
-      int sigfd;
-      sigdelset(&sigset_, signum);
-      sigfd = signalfd(sigfd_, &sigset_, SFD_CLOEXEC|SFD_NONBLOCK);
-      if (sigfd == -1)
+      if (internal->real_event & kInCallback)
       {
-        sigaddset(&sigset_, signum);
-        EV_LOG(kError, "signalfd: %s", strerror(errno));
-        return kEvFailure;
-      }
-      EV_ASSERT(sigfd == sigfd_);
-
-      sigset_t tmp_sigset;
-      sigemptyset(&tmp_sigset);
-      sigaddset(&tmp_sigset, signum);
-      EV_VERIFY(sigprocmask(SIG_UNBLOCK, &tmp_sigset, NULL) == 0);
-
-      if (!internal->IsActive())
-      {
-        internal->real_event = kEvCanceled;// only kEvCanceled
-        internal->AddToActive(&active_sig_ev_);
+        internal->DelFromList(&sig_ev_);
+        EV_LOG(kDebug, "Signal Event(%p) is being canceled by user inside its callback", ev);
+        return kEvOK;
       }
       else
       {
-        internal->real_event |= kEvCanceled;// previous event with kEvCanceled
-      }
+        if (!internal->IsActive())
+        {
+          internal->real_event = kEvCanceled;// only kEvCanceled
+          internal->AddToActive(&active_sig_ev_);
+        }
+        else
+        {
+          internal->real_event |= kEvCanceled;// previous event with kEvCanceled
+        }
 
-      EV_LOG(kDebug, "Signal Event(%p) has been canceled", ev);
-      return kEvOK;
+        EV_LOG(kDebug, "Signal Event(%p) is being canceled by user outside its callback", ev);
+        return kEvOK;
+      }
     }
 
     int PollOne()
@@ -463,7 +502,7 @@ namespace libev {
     {
       if (immediate)
       {
-        struct pollfd poll_fds[1];
+        pollfd poll_fds[1];
         poll_fds[0].fd = sigfd_;
         poll_fds[0].events = POLLIN;
         int result = poll(poll_fds, 1, 0);
@@ -480,16 +519,20 @@ namespace libev {
       }
       else
       {
-        struct pollfd poll_fds[2];
+        pollfd poll_fds[2];
         poll_fds[0].fd = sigfd_;
         poll_fds[0].events = POLLIN;
         poll_fds[1].fd = interrupter_.fd();
         poll_fds[1].events = POLLIN;
 
         interrupter_.Reset();
-        int result = poll(poll_fds, 2, -1);
-        if (result <= 0)
-          return 0;
+        int result;
+
+        do result = poll(poll_fds, 2, -1);
+        while (result == -1 && errno == EINTR);
+
+        EV_ASSERT(result != 0);
+        EV_ASSERT(result != -1);
 
         if (poll_fds[0].revents & POLLIN)
         {
@@ -519,14 +562,12 @@ namespace libev {
 
       for (;;)
       {
-        result = read(sigfd_, &siginfo, sizeof(siginfo));
-        if (result == -1)
-        {
-          if (errno == EAGAIN)
-            return;
-          if (errno == EINTR)
-            continue;
-        }
+        do result = read(sigfd_, &siginfo, sizeof(siginfo));
+        while (result == -1 && errno == EINTR);
+
+        if (result == -1 && errno == EAGAIN)
+          return;
+
         EV_ASSERT(result == sizeof(siginfo));
 
         signum = siginfo.ssi_signo;
@@ -870,7 +911,7 @@ namespace libev {
   /************************************************************************/
   Reactor * Reactor::CreateSignalReactor()
   {
-    return new SignalReactor;
+    return new SignalReactor;// may throw
   }
   //Reactor::Reactor() {impl_ = new EvImpl;}
   //Reactor::~Reactor() {delete impl_;}

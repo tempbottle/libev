@@ -76,10 +76,10 @@ namespace libev {
   {
   public:
     // delete the return value if it is no longer used
-    static Reactor * CreateIOReactor();// for test // may throw
-    static Reactor * CreateSignalReactor();// for test // may throw
-    static Reactor * CreateTimerReactor();// for test // may throw
-    static Reactor * CreateReactor();// may throw
+    static Reactor * CreateIOReactor();// for test
+    static Reactor * CreateSignalReactor();// for test
+    static Reactor * CreateTimerReactor();// for test
+    static Reactor * CreateReactor();
   public:
     virtual ~Reactor() {}
 

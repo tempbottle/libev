@@ -4,7 +4,6 @@
 * @date
 * @version
 *
-* external header
 */
 #ifndef LIBEV_LOG_H
 #define LIBEV_LOG_H
