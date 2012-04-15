@@ -59,6 +59,12 @@ namespace libev {
 
 
   /************************************************************************/
+  Reactor::~Reactor() {}
+
+  void Reactor::OnReadable() {}
+
+
+  /************************************************************************/
   Reactor * Reactor::CreateSignalReactor()
   {
     return new SignalReactor;// may throw

@@ -83,7 +83,7 @@ namespace libev {
     //static Reactor * CreateTimerReactor();// for test
     //static Reactor * CreateReactor();
   public:
-    virtual ~Reactor() {}
+    virtual ~Reactor();
 
     virtual int Init() = 0;
     virtual void UnInit() = 0;
@@ -104,6 +104,12 @@ namespace libev {
     // return the number of executed event
     virtual int Run() = 0;
     virtual int Stop() = 0;
+
+    // return 1, readable
+    // return 0, unreadable
+    // return -1, interrupted
+    virtual int GetReadability(int immediate) = 0;
+    virtual void OnReadable();
   };
 
 
@@ -155,11 +161,8 @@ namespace libev {
     virtual int Run();
     virtual int Stop();
 
-    // return 1, readable
-    // return 0, unreadable
-    // return -1, interrupted
-    int GetReadability(int immediate);
-    void OnReadable();
+    virtual int GetReadability(int immediate);
+    virtual void OnReadable();
   };
 
 }
