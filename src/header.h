@@ -5,6 +5,7 @@
 * @date
 * @version
 *
+* internal/private header
 */
 #ifndef LIBEV_HEADER_H
 #define LIBEV_HEADER_H

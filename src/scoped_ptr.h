@@ -30,12 +30,12 @@ namespace libev {
     {
     }
 
-    ~ScopedPtr() throw()
+    ~ScopedPtr()
     {
       delete px_;
     }
 
-    void reset(pointer p = 0) throw()
+    void reset(pointer p = 0)
     {
       if (p == px_)
         return;
@@ -43,17 +43,17 @@ namespace libev {
       self_type(p).swap(*this);
     }
 
-    reference operator*() const throw()
+    reference operator*() const
     {
       return *px_;
     }
 
-    pointer operator->() const throw()
+    pointer operator->() const
     {
       return px_;
     }
 
-    pointer get() const throw()
+    pointer get() const
     {
       return px_;
     }
@@ -63,14 +63,14 @@ namespace libev {
       return px_ != 0;
     }
 
-    void swap(self_type& b) throw()
+    void swap(self_type& b)
     {
       T * tmp = px_;
       px_ = b.px_;
       b.px_ = tmp;
     }
 
-    friend inline void swap(self_type& a, self_type& b) throw()
+    friend inline void swap(self_type& a, self_type& b)
     {
       T * tmp = a.px_;
       a.px_ = b.px_;

@@ -59,7 +59,7 @@ namespace libev {
         return kEvFailure;
       }
 
-      EV_VERIFY(result == sizeof(counter));
+      EV_ASSERT(result == sizeof(counter));
       return kEvOK;
     }
   }

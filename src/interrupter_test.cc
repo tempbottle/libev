@@ -5,9 +5,7 @@
 * @version
 *
 */
-#include "interrupter.h"
 #include "ev.h"
-#include "log.h"
 #include "header.h"
 
 using namespace libev;

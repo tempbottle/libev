@@ -21,6 +21,7 @@ SOURCE=Split(
     'src/header.cc '
     'src/interrupter.cc '
     'src/log.cc '
+    'src/signal.cc '
 )
 
 env.Append(CCFLAGS = ' -Wall -g')

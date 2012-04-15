@@ -8,6 +8,8 @@
 #ifndef LIBEV_LOG_H
 #define LIBEV_LOG_H
 
+#include <stdlib.h>
+
 namespace libev {
 
   // flags used by Log::Log
@@ -40,7 +42,7 @@ namespace libev {
   public:
     // If 'flags' & kFile is non-zero, 'logfile' will be the filename of output log
     // If 'flags' & kSysLog is non-zero, 'syslog_ident' will be used to 'openlog'
-    Log(int level, int flags, const char * logfile = 0, const char * syslog_ident = 0);// may throw
+    Log(int level, int flags, const char * logfile = 0, const char * syslog_ident = 0);
     ~Log();
     // return -1, the message is not logged for internal reasons
     // return 0, the message is not logged for 'level'
@@ -51,7 +53,7 @@ namespace libev {
   };
 
   void InitGlobalLog(int level = kDebug, int flags = kStderr,
-    const char * logfile = 0, const char * syslog_ident = 0);// may throw
+    const char * logfile = 0, const char * syslog_ident = 0);
   void UnInitGlobalLog();
   Log& GlobalLog();
 }

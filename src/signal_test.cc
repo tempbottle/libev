@@ -6,8 +6,6 @@
 *
 */
 #include "ev.h"
-#include "log.h"
-#include "scoped_ptr.h"
 #include "header.h"
 
 using namespace libev;

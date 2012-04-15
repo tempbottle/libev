@@ -8,10 +8,14 @@
 #ifndef LIBEV_INTERRUPTER_H
 #define LIBEV_INTERRUPTER_H
 
+#include "ev-internal.h"
+
 namespace libev {
 
   class Interrupter
   {
+  private:
+    DISALLOW_COPY_AND_ASSIGN(Interrupter);
   public:
     Interrupter();
     ~Interrupter();

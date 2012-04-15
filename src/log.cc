@@ -106,7 +106,7 @@ namespace libev {
 
   Log::Log(int level, int flags, const char * logfile, const char * syslog_ident)
   {
-    impl_ = new Impl(level, flags, logfile, syslog_ident);
+    impl_ = new Impl(level, flags, logfile, syslog_ident);// may throw
   }
 
   Log::~Log()
@@ -217,7 +217,7 @@ format_error:
   void InitGlobalLog(int level, int flags,
     const char * logfile, const char * syslog_ident)
   {
-    s_log.reset(new Log(level, flags, logfile, syslog_ident));
+    s_log.reset(new Log(level, flags, logfile, syslog_ident));// may throw
   }
 
   void UnInitGlobalLog()
