@@ -67,7 +67,7 @@ static void Test2_Callback(int signum, int event, void * user_data)
   else if (signum == SIGQUIT)
   {
     EV_LOG(kInfo, "Test2_Callback SIGQUIT");
-    Test2_Helper * helper = (Test2_Helper *)user_data;
+    Test2_Helper * helper = static_cast<Test2_Helper *>(user_data);
     helper->reactor->Del(helper->ev[0]);
   }
 }
@@ -121,7 +121,7 @@ static void Test3_Callback(int signum, int event, void * user_data)
 {
   EV_LOG(kInfo, "Test3_Callback %d", signum);
 
-  Test3_Helper * helper = (Test3_Helper *)user_data;
+  Test3_Helper * helper = static_cast<Test3_Helper *>(user_data);
 
   if (--helper->times == 0)
   {
@@ -221,7 +221,7 @@ static void Test5_Callback(int signum, int event, void * user_data)
 {
   EV_LOG(kInfo, "Test5_Callback %d", signum);
 
-  Test3_Helper * helper = (Test3_Helper *)user_data;
+  Test5_Helper * helper = static_cast<Test5_Helper *>(user_data);
 
   if (--helper->times == 0)
   {
