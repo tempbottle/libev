@@ -145,7 +145,7 @@ namespace libev {
       if (bytes_left <= 0) goto extend_buf;
 
       n = snprintf(p, bytes_left, ".%06ld [%d/%d] [%s]: ",
-        tv.tv_usec, pid, (int)syscall(SYS_gettid), s_log_level_string[level]);
+        tv.tv_usec, pid, static_cast<int>(syscall(SYS_gettid)), s_log_level_string[level]);
 
       if (n < 0) goto format_error;
       bytes_left -= n;
