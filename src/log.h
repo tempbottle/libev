@@ -48,6 +48,7 @@ namespace libev {
     // return 0, the message is not logged for 'level'
     // return 1, the message is successfully logged
     int Printf(int level, const char * format, ...);
+    // return the log level
     int GetLevel()const;
     void SetLevel(int level);
   };

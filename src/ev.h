@@ -37,7 +37,7 @@ namespace libev {
     kEvSignal = 0x04,         // signal event
     kEvTimer = 0x08,          // timer event
     kEvPersist = 0x10,        // persistent event
-    kEvET = 0x20,             // use edge trigger in epoll(the default is level trigger)
+    kEvET = 0x20,             // use edge trigger(EPOLLET)
 
     // 1.The following event flag must not be set in Event.event,
     //   they are to be checked in callback.
@@ -128,7 +128,11 @@ namespace libev {
     virtual int Run();
     virtual int Stop();
 
-    int GetFd()const;
+    // return the inner fd
+    int fd()const;
+    // return 1, readable
+    // return 0, unreadable
+    // return -1, interrupted
     int GetReadability(int immediate);
     void OnReadable();
   };
@@ -144,6 +148,7 @@ namespace libev {
 
   public:
     EpollReactor();
+    explicit EpollReactor(SignalReactor * signal);
     virtual ~EpollReactor();
 
     virtual int Init();
@@ -157,9 +162,6 @@ namespace libev {
     virtual int RunOne();
     virtual int Run();
     virtual int Stop();
-
-    virtual int GetReadability(int immediate);
-    virtual void OnReadable();
   };
 
 }
