@@ -10,22 +10,27 @@
 
 namespace libev {
 
+  Event::Event() {}
+
+  Event::Event(int _fd, int _event, ev_callback _callback, void * _udata)
+    : fd(_fd), event(_event), callback(_callback), user_data(_udata) {}
+
+
+  /************************************************************************/
   int CheckInputEventFlag(int flags)
   {
     int count = 0;
 
     if (flags & kEvErr)
     {
-      errno = EINVAL;
       EV_LOG(kError, "kEvErr must not be set");
-      return kEvFailure;
+      goto einval;
     }
 
     if (flags & kEvCanceled)
     {
-      errno = EINVAL;
       EV_LOG(kError, "kEvCanceled must not be set");
-      return kEvFailure;
+      goto einval;
     }
 
     if (flags & kEvIO) count++;
@@ -34,28 +39,63 @@ namespace libev {
 
     if (count > 1)
     {
-      errno = EINVAL;
       EV_LOG(kError, "kEvIO, kEvSignal, kEvTimer are mutual exclusive");
-      return kEvFailure;
+      goto einval;
     }
     else if (count < 1)
     {
-      errno = EINVAL;
       EV_LOG(kError, "No valid event flags is set");
-      return kEvFailure;
+      goto einval;
     }
-    else
-    {
-      return kEvOK;
-    }
+
+    return kEvOK;
+einval:
+    errno = EINVAL;
+    return kEvFailure;
   }
 
+  int CheckEvent(Event * ev)
+  {
+    if (ev == 0)
+      goto einval;
 
-  /************************************************************************/
-  Event::Event() {}
+    if (CheckInputEventFlag(ev->event) != kEvOK)
+      goto einval;
 
-  Event::Event(int _fd, int _event, ev_callback _callback, void * _udata)
-    : fd(_fd), event(_event), callback(_callback), user_data(_udata) {}
+    if (ev->event & kEvIO)
+    {
+      if (ev->fd < 0)
+      {
+        EV_LOG(kError, "Event(%p) has an invalid fd", ev, ev->fd);
+        goto einval;
+      }
+    }
+    else if (ev->event & kEvSignal)
+    {
+      if (ev->fd < 0 || ev->fd >= _NSIG)
+      {
+        EV_LOG(kError, "Event(%p) has an invalid signal number", ev, ev->fd);
+        goto einval;
+      }
+    }
+    else if (ev->event & kEvTimer)
+    {
+      // nothing to check now
+    }
+
+    EV_ASSERT(ev->fd >= 0 && ev->fd < _NSIG);
+    
+    if (ev->callback == 0)
+    {
+      EV_LOG(kError, "Event(%p) has no callback", ev);
+      goto einval;
+    }
+
+    return kEvOK;
+einval:
+    errno = EINVAL;
+    return kEvFailure;
+  }
 
 
   /************************************************************************/

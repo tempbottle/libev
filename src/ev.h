@@ -9,7 +9,7 @@
 #define LIBEV_EV_H
 
 #include "ev-internal.h"
-#include <time.h>
+#include <time.h>//struct timespec
 
 namespace libev {
 
@@ -37,7 +37,7 @@ namespace libev {
     kEvSignal = 0x04,         // signal event
     kEvTimer = 0x08,          // timer event
     kEvPersist = 0x10,        // persistent event
-    kEvET = 0x20,             // use edge trigger in epoll(the default is level trigger)
+    kEvET = 0x20,             // use edge trigger(EPOLLET)
 
     // 1.The following event flag must not be set in Event.event,
     //   they are to be checked in callback.
@@ -49,9 +49,6 @@ namespace libev {
 
   typedef void (*ev_callback)(int fd_or_signum, int event, void * user_data);
 
-  // check Event.event
-  int CheckInputEventFlag(int flags);
-
 
   struct Event
   {
@@ -59,18 +56,23 @@ namespace libev {
     DISALLOW_COPY_AND_ASSIGN(Event);
 
   public:
-    int fd;                   // fd(kEvIn, kEvOut, kEvTimer) or signal(kEvSignal)
+    int fd;                   // fd(kEvIn, kEvOut) or signal(kEvSignal)
     timespec timeout;         // relative timeout(kEvTimer)
     int event;                // event flags(bit or of EventFlag)
     ev_callback callback;     // callback
     void * user_data;         // user data
-    EventInternal internal;// internal data(DO NOT modify it!!!)
+    EventInternal internal;   // internal data(DO NOT modify it!!!)
 
     Event();
     Event(int _fd, int _event, ev_callback _callback, void * _udata);
   };
 
+  // check Event.event
+  int CheckInputEventFlag(int flags);
+  int CheckEvent(Event * ev);
 
+
+  /************************************************************************/
   class Reactor
   {
   public:
@@ -128,7 +130,11 @@ namespace libev {
     virtual int Run();
     virtual int Stop();
 
-    int GetFd()const;
+    // return the inner fd
+    int fd()const;
+    // return 1, readable
+    // return 0, unreadable
+    // return -1, interrupted
     int GetReadability(int immediate);
     void OnReadable();
   };
@@ -144,6 +150,7 @@ namespace libev {
 
   public:
     EpollReactor();
+    explicit EpollReactor(SignalReactor * signal);
     virtual ~EpollReactor();
 
     virtual int Init();
@@ -157,11 +164,7 @@ namespace libev {
     virtual int RunOne();
     virtual int Run();
     virtual int Stop();
-
-    virtual int GetReadability(int immediate);
-    virtual void OnReadable();
   };
-
 }
 
 #endif

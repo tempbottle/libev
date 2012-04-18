@@ -58,7 +58,7 @@ namespace libev {
     virtual int Run();
     virtual int Stop();
 
-    int GetFd()const;
+    int fd()const;
     int GetReadability(int immediate);
     void OnReadable();
   };
@@ -67,6 +67,7 @@ namespace libev {
   /************************************************************************/
   void SignalReactor::Impl::AddSignalRef(int signum)
   {
+    EV_ASSERT(signum >= 0 && signum < _NSIG);
     EV_ASSERT(sig_ev_refcount_[signum] >= 0);
 
     if (sig_ev_refcount_[signum] == 0)
@@ -77,7 +78,7 @@ namespace libev {
       sigset_t tmp_sigset;
       sigemptyset(&tmp_sigset);
       sigaddset(&tmp_sigset, signum);
-      EV_VERIFY(sigprocmask(SIG_BLOCK, &tmp_sigset, NULL) == 0);
+      EV_VERIFY(sigprocmask(SIG_BLOCK, &tmp_sigset, 0) == 0);
 
       EV_LOG(kDebug, "Signal(%d) has been blocked and added", signum);
     }
@@ -86,6 +87,7 @@ namespace libev {
 
   void SignalReactor::Impl::ReleaseSignalRef(int signum)
   {
+    EV_ASSERT(signum >= 0 && signum < _NSIG);
     EV_ASSERT(sig_ev_refcount_[signum] > 0);
 
     if (--sig_ev_refcount_[signum] == 0)
@@ -96,7 +98,7 @@ namespace libev {
       sigset_t tmp_sigset;
       sigemptyset(&tmp_sigset);
       sigaddset(&tmp_sigset, signum);
-      EV_VERIFY(sigprocmask(SIG_UNBLOCK, &tmp_sigset, NULL) == 0);
+      EV_VERIFY(sigprocmask(SIG_UNBLOCK, &tmp_sigset, 0) == 0);
 
       EV_LOG(kDebug, "Signal(%d) has been unblocked and deleted", signum);
     }
@@ -137,14 +139,12 @@ namespace libev {
     EV_ASSERT(internal);
     EV_ASSERT(internal->IsInList());
 
-    //EV_LOG(kDebug, "Signal Event(%p)'s callback is to be invoked", ev);
     int perist_before = ev->event & kEvPersist;
     internal->real_event |= kInCallback;
     ev->callback(ev->fd, internal->real_event, ev->user_data);
     internal->real_event &= ~kInCallback;
     int perist_after = ev->event & kEvPersist;
     internal->sig_times--;
-    //EV_LOG(kDebug, "Signal Event(%p)'s callback has been invoked", ev);
 
     int still_in_list = internal->IsInList();
     int remove_persist = (perist_before && !perist_after);
@@ -260,13 +260,13 @@ namespace libev {
 
   SignalReactor::Impl::Impl() : sigfd_(-1)
   {
-    EV_VERIFY(sigprocmask(0, NULL, &old_sigset_) == 0);
+    EV_VERIFY(sigprocmask(0, 0, &old_sigset_) == 0);
   }
 
   SignalReactor::Impl::~Impl()
   {
     UnInit();
-    EV_VERIFY(sigprocmask(SIG_SETMASK, &old_sigset_, NULL) == 0);
+    EV_VERIFY(sigprocmask(SIG_SETMASK, &old_sigset_, 0) == 0);
   }
 
   int SignalReactor::Impl::Init()
@@ -311,13 +311,14 @@ namespace libev {
   int SignalReactor::Impl::Add(Event * ev)
   {
     EV_ASSERT(ev);
+    EV_ASSERT(ev->fd >= 0 && ev->fd < _NSIG);
     EV_ASSERT(CheckInputEventFlag(ev->event) == kEvOK);
     EV_ASSERT(ev->event & kEvSignal);
     EV_ASSERT(ev->callback);
 
     if (ev->internal.IsInList())
     {
-      EV_LOG(kError, "Signal Event(%p) is added before", ev);
+      EV_LOG(kError, "Signal Event(%p) has been added before", ev);
       return kEvExists;
     }
     EV_ASSERT(!ev->internal.IsActive());
@@ -388,7 +389,7 @@ namespace libev {
     return interrupter_.Interrupt();
   }
 
-  int SignalReactor::Impl::GetFd()const
+  int SignalReactor::Impl::fd()const
   {
     return sigfd_;
   }
@@ -507,7 +508,7 @@ namespace libev {
   int SignalReactor::RunOne() {return impl_->RunOne();}
   int SignalReactor::Run() {return impl_->Run();}
   int SignalReactor::Stop() {return impl_->Stop();}
-  int SignalReactor::GetFd()const {return impl_->GetFd();}
+  int SignalReactor::fd()const {return impl_->fd();}
   int SignalReactor::GetReadability(int immediate) {return impl_->GetReadability(immediate);}
   void SignalReactor::OnReadable() {impl_->OnReadable();}
 

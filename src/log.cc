@@ -43,7 +43,7 @@ namespace libev {
 
   public:
     Impl(int level, int flags, const char * logfile, const char * syslog_ident)
-      :level_(level), flags_(flags), fp_(NULL)
+      :level_(level), flags_(flags), fp_(0)
     {
       if (flags_ & kSysLog)
       {
@@ -123,7 +123,7 @@ namespace libev {
     if (impl_->GetLevel() < level)
       return 0;
 
-    char buf[32768], * p = buf, * large_buf = NULL;
+    char buf[32768], * p = buf, * large_buf = 0;
     int buf_size = sizeof(buf);
     int bytes_left = buf_size;
     int n;
@@ -132,7 +132,7 @@ namespace libev {
     struct tm tm_s;
 
 
-    gettimeofday(&tv, NULL);
+    gettimeofday(&tv, 0);
     localtime_r(&tv.tv_sec, &tm_s);
 
     for (;;)
@@ -173,7 +173,7 @@ extend_buf:
       if (large_buf)
         free(large_buf);
       large_buf = static_cast<char *>(malloc(buf_size));
-      if (large_buf == NULL)
+      if (large_buf == 0)
         goto format_error;
 
       p = large_buf;

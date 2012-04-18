@@ -28,7 +28,7 @@ static void Test1()
 
 static void Test2()
 {
-  Log log(kDebug, kSysLog, NULL, "log_test");
+  Log log(kDebug, kSysLog, 0, "log_test");
   log.Printf(kAlert, "kAlert");
   log.Printf(kError, "kError");
   log.Printf(kInfo, "kInfo");
@@ -37,7 +37,7 @@ static void Test2()
 
 static void Test3()
 {
-  Log log(kDebug, kLogFile, "log_test.log", NULL);
+  Log log(kDebug, kLogFile, "log_test.log", 0);
   log.Printf(kAlert, "kAlert");
   log.Printf(kError, "kError");
   log.Printf(kInfo, "kInfo");
@@ -46,7 +46,7 @@ static void Test3()
 
 static void Test4()
 {
-  Log log(kDebug, kStdout | kSysLog | kLogFile, NULL, NULL);
+  Log log(kDebug, kStdout | kSysLog | kLogFile, 0, 0);
   log.Printf(kAlert, "kAlert");
   log.Printf(kError, "kError");
   log.Printf(kInfo, "kInfo");

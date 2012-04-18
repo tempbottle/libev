@@ -23,7 +23,7 @@ static void * ThreadFunc(void *)
     inter.Interrupt();
   }
 
-  return NULL;
+  return 0;
 }
 
 int main()
@@ -47,7 +47,7 @@ int main()
   result = epoll_ctl(epfd, EPOLL_CTL_ADD, inter.fd(), &event);
   EV_VERIFY(result == 0);
 
-  result = pthread_create(&tid, NULL, ThreadFunc, NULL);
+  result = pthread_create(&tid, 0, ThreadFunc, 0);
   EV_VERIFY(result == 0);
 
   for (i=0; i<times; i++)
@@ -65,7 +65,7 @@ int main()
 
   EV_LOG(kInfo, "quit");
 
-  result = pthread_join(tid, NULL);
+  result = pthread_join(tid, 0);
   EV_VERIFY(result == 0);
 
   close(epfd);

@@ -30,21 +30,23 @@ namespace libev {
 
   struct EventInternal
   {
-    ListNode all;// node in all event list
-    ListNode active;// node in active event list
+    ListNode all;// node in all event list(signal and timer events)
+    ListNode active;// node in active event list(all events)
 
     int real_event;// the real event to be passed to callback
-    int sig_times;// the times that the signal is triggered but pending(kEvSignal)
+    int sig_times;// the times that the signal is triggered but pending(signal events)
     int flags;// bit or of EventInternalFlag
 
     EventInternal() : real_event(0), sig_times(0), flags(0) {}
 
-    int IsInList()const
+    // return 1, in
+    // return 0, not in
+    int IsInList()const// signal and timer events
     {
       return flags & kInAllList;
     }
 
-    void AddToList(List * list)
+    void AddToList(List * list)// signal and timer events
     {
       EV_ASSERT(list);
       EV_ASSERT(!IsInList());
@@ -52,7 +54,7 @@ namespace libev {
       flags |= kInAllList;
     }
 
-    void DelFromList(List * list)
+    void DelFromList(List * list)// signal and timer events
     {
       EV_ASSERT(list);
       EV_ASSERT(IsInList());
@@ -60,12 +62,14 @@ namespace libev {
       flags &= ~kInAllList;
     }
 
-    int IsActive()const
+    // return 1, active
+    // return 0, not active
+    int IsActive()const// all events
     {
       return flags & kInActiveList;
     }
 
-    void AddToActive(List * active_list)
+    void AddToActive(List * active_list)// all events
     {
       EV_ASSERT(active_list);
       EV_ASSERT(!IsActive());
@@ -73,7 +77,7 @@ namespace libev {
       flags |= kInActiveList;
     }
 
-    void DelFromActive(List * active_list)
+    void DelFromActive(List * active_list)// all events
     {
       EV_ASSERT(active_list);
       EV_ASSERT(IsActive());

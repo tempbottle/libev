@@ -48,6 +48,7 @@ namespace libev {
     // return 0, the message is not logged for 'level'
     // return 1, the message is successfully logged
     int Printf(int level, const char * format, ...);
+    // return the log level
     int GetLevel()const;
     void SetLevel(int level);
   };
@@ -66,8 +67,7 @@ namespace libev {
 # define EV_ASSERT(exp) ((void)0)
 #else
 # define EV_ASSERT(exp) do { \
-  if (!(exp)) \
-  { \
+  if (!(exp)) { \
     GlobalLog().Printf(kError, "[%s:%d] expression(%s) failed", __FILE__, __LINE__, #exp); \
     abort(); \
   } \
@@ -75,8 +75,7 @@ namespace libev {
 #endif
 
 #define EV_VERIFY(exp) do { \
-  if (!(exp)) \
-  { \
+  if (!(exp)) { \
     GlobalLog().Printf(kError, "[%s:%d] expression(%s) failed", __FILE__, __LINE__, #exp); \
     abort(); \
   } \
