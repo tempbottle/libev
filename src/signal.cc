@@ -6,11 +6,66 @@
 *
 */
 #include "ev.h"
+#include "interrupter.h"
 #include "header.h"
 
 namespace libev {
 
-  void SignalReactor::AddSignalRef(int signum)
+  class SignalReactor::Impl : public Reactor
+  {
+  private:
+    DISALLOW_COPY_AND_ASSIGN(Impl);
+
+    int sigfd_;
+    sigset_t sigset_;
+    sigset_t old_sigset_;
+    List sig_ev_;
+    List active_sig_ev_;
+    Interrupter interrupter_;
+    int sig_ev_refcount_[_NSIG];
+
+  private:
+    void AddSignalRef(int signum);
+    void ReleaseSignalRef(int signum);
+
+    // cancel all events
+    void CancelAll();
+    void InvokeCallback(Event * ev);
+
+    // if 'limit' > 0, execute at most 'limit' ready event
+    // if 'limit' == 0, execute all ready events
+    // return the number of executed event
+    int PollImpl(int limit);
+
+    // if 'limit' > 0, execute at most 'limit' event, or until interrupted
+    // if 'limit' == 0, execute all events, or until interrupted
+    // return the number of executed event
+    int RunImpl(int limit);
+
+  public:
+    Impl();
+    virtual ~Impl();
+
+    virtual int Init();
+    virtual void UnInit();
+
+    virtual int Add(Event * ev);
+    virtual int Del(Event * ev);
+
+    virtual int PollOne();
+    virtual int Poll();
+    virtual int RunOne();
+    virtual int Run();
+    virtual int Stop();
+
+    int GetFd()const;
+    int GetReadability(int immediate);
+    void OnReadable();
+  };
+
+
+  /************************************************************************/
+  void SignalReactor::Impl::AddSignalRef(int signum)
   {
     EV_ASSERT(sig_ev_refcount_[signum] >= 0);
 
@@ -29,7 +84,7 @@ namespace libev {
     sig_ev_refcount_[signum]++;
   }
 
-  void SignalReactor::ReleaseSignalRef(int signum)
+  void SignalReactor::Impl::ReleaseSignalRef(int signum)
   {
     EV_ASSERT(sig_ev_refcount_[signum] > 0);
 
@@ -47,7 +102,7 @@ namespace libev {
     }
   }
 
-  void SignalReactor::CancelAll()
+  void SignalReactor::Impl::CancelAll()
   {
     ListNode * node;
     EventInternal * internal;
@@ -74,7 +129,7 @@ namespace libev {
     }
   }
 
-  void SignalReactor::InvokeCallback(Event * ev)
+  void SignalReactor::Impl::InvokeCallback(Event * ev)
   {
     EV_ASSERT(ev);
     EV_ASSERT(ev->callback);
@@ -122,7 +177,7 @@ namespace libev {
     }
   }
 
-  int SignalReactor::PollImpl(int limit)
+  int SignalReactor::Impl::PollImpl(int limit)
   {
     EV_ASSERT(limit >= 0);
 
@@ -156,7 +211,7 @@ namespace libev {
     }
   }
 
-  int SignalReactor::RunImpl(int limit)
+  int SignalReactor::Impl::RunImpl(int limit)
   {
     EV_ASSERT(limit >= 0);
 
@@ -203,18 +258,18 @@ namespace libev {
     }
   }
 
-  SignalReactor::SignalReactor() : sigfd_(-1)
+  SignalReactor::Impl::Impl() : sigfd_(-1)
   {
     EV_VERIFY(sigprocmask(0, NULL, &old_sigset_) == 0);
   }
 
-  SignalReactor::~SignalReactor()
+  SignalReactor::Impl::~Impl()
   {
     UnInit();
     EV_VERIFY(sigprocmask(SIG_SETMASK, &old_sigset_, NULL) == 0);
   }
 
-  int SignalReactor::Init()
+  int SignalReactor::Impl::Init()
   {
     UnInit();
 
@@ -239,7 +294,7 @@ namespace libev {
     return kEvOK;
   }
 
-  void SignalReactor::UnInit()
+  void SignalReactor::Impl::UnInit()
   {
     interrupter_.UnInit();
 
@@ -253,7 +308,7 @@ namespace libev {
     Poll();
   }
 
-  int SignalReactor::Add(Event * ev)
+  int SignalReactor::Impl::Add(Event * ev)
   {
     EV_ASSERT(ev);
     EV_ASSERT(CheckInputEventFlag(ev->event) == kEvOK);
@@ -274,7 +329,7 @@ namespace libev {
     return kEvOK;
   }
 
-  int SignalReactor::Del(Event * ev)
+  int SignalReactor::Impl::Del(Event * ev)
   {
     EV_ASSERT(ev);
 
@@ -308,32 +363,37 @@ namespace libev {
     }
   }
 
-  int SignalReactor::PollOne()
+  int SignalReactor::Impl::PollOne()
   {
     return PollImpl(1);
   }
 
-  int SignalReactor::Poll()
+  int SignalReactor::Impl::Poll()
   {
     return PollImpl(0);
   }
 
-  int SignalReactor::RunOne()
+  int SignalReactor::Impl::RunOne()
   {
     return RunImpl(1);
   }
 
-  int SignalReactor::Run()
+  int SignalReactor::Impl::Run()
   {
     return RunImpl(0);
   }
 
-  int SignalReactor::Stop()
+  int SignalReactor::Impl::Stop()
   {
     return interrupter_.Interrupt();
   }
 
-  int SignalReactor::GetReadability(int immediate)
+  int SignalReactor::Impl::GetFd()const
+  {
+    return sigfd_;
+  }
+
+  int SignalReactor::Impl::GetReadability(int immediate)
   {
     if (immediate)
     {
@@ -386,7 +446,7 @@ namespace libev {
     }
   }
 
-  void SignalReactor::OnReadable()
+  void SignalReactor::Impl::OnReadable()
   {
     signalfd_siginfo siginfo;
     int result;
@@ -433,5 +493,22 @@ namespace libev {
       }
     }// for
   }// OnReadable
+
+
+  /************************************************************************/
+  SignalReactor::SignalReactor() {impl_ = new Impl;}
+  SignalReactor::~SignalReactor() {delete impl_;}
+  int SignalReactor::Init() {return impl_->Init();}
+  void SignalReactor::UnInit() {impl_->UnInit();}
+  int SignalReactor::Add(Event * ev) {return impl_->Add(ev);}
+  int SignalReactor::Del(Event * ev) {return impl_->Del(ev);}
+  int SignalReactor::PollOne() {return impl_->PollOne();}
+  int SignalReactor::Poll() {return impl_->Poll();}
+  int SignalReactor::RunOne() {return impl_->RunOne();}
+  int SignalReactor::Run() {return impl_->Run();}
+  int SignalReactor::Stop() {return impl_->Stop();}
+  int SignalReactor::GetFd()const {return impl_->GetFd();}
+  int SignalReactor::GetReadability(int immediate) {return impl_->GetReadability(immediate);}
+  void SignalReactor::OnReadable() {impl_->OnReadable();}
 
 }

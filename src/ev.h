@@ -9,10 +9,7 @@
 #define LIBEV_EV_H
 
 #include "ev-internal.h"
-#include "interrupter.h"
-#include "scoped_ptr.h"
 #include <time.h>
-#include <signal.h>
 
 namespace libev {
 
@@ -104,12 +101,6 @@ namespace libev {
     // return the number of executed event
     virtual int Run() = 0;
     virtual int Stop() = 0;
-
-    // return 1, readable
-    // return 0, unreadable
-    // return -1, interrupted
-    virtual int GetReadability(int immediate) = 0;
-    virtual void OnReadable();
   };
 
 
@@ -118,36 +109,42 @@ namespace libev {
   {
   private:
     DISALLOW_COPY_AND_ASSIGN(SignalReactor);
-
-    int sigfd_;
-    sigset_t sigset_;
-    sigset_t old_sigset_;
-    List sig_ev_;
-    List active_sig_ev_;
-    Interrupter interrupter_;
-    int sig_ev_refcount_[_NSIG];
-
-  private:
-    void AddSignalRef(int signum);
-    void ReleaseSignalRef(int signum);
-
-    // cancel all events
-    void CancelAll();
-    void InvokeCallback(Event * ev);
-
-    // if 'limit' > 0, execute at most 'limit' ready event
-    // if 'limit' == 0, execute all ready events
-    // return the number of executed event
-    int PollImpl(int limit);
-
-    // if 'limit' > 0, execute at most 'limit' event, or until interrupted
-    // if 'limit' == 0, execute all events, or until interrupted
-    // return the number of executed event
-    int RunImpl(int limit);
+    class Impl;
+    Impl * impl_;
 
   public:
     SignalReactor();
     virtual ~SignalReactor();
+
+    virtual int Init();
+    virtual void UnInit();
+
+    virtual int Add(Event * ev);
+    virtual int Del(Event * ev);
+
+    virtual int PollOne();
+    virtual int Poll();
+    virtual int RunOne();
+    virtual int Run();
+    virtual int Stop();
+
+    int GetFd()const;
+    int GetReadability(int immediate);
+    void OnReadable();
+  };
+
+
+  /************************************************************************/
+  class EpollReactor : public Reactor
+  {
+  private:
+    DISALLOW_COPY_AND_ASSIGN(EpollReactor);
+    class Impl;
+    Impl * impl_;
+
+  public:
+    EpollReactor();
+    virtual ~EpollReactor();
 
     virtual int Init();
     virtual void UnInit();

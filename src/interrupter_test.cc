@@ -6,6 +6,7 @@
 *
 */
 #include "ev.h"
+#include "interrupter.h"
 #include "header.h"
 
 using namespace libev;
