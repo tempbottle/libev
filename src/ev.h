@@ -9,6 +9,7 @@
 #define LIBEV_EV_H
 
 #include "ev-internal.h"
+#include "list.h"
 #include <time.h>//struct timespec
 
 namespace libev {
@@ -29,8 +30,10 @@ namespace libev {
     // 3.all timers use a monotonic clock, timeouts are relative,
     //   please use clock_gettime(CLOCK_MONOTONIC, ...) to get the clock time.
     // 4.EPOLLPRI is not practical, which is not included and implemented.
-    // 5.Check kEvIn and kEvOut in callback if kEvIO is set, because kEvIn and kEvOut,
-    //   which can be set to poll simultaneously, may not be triggered simultaneously.
+    // 5.Check kEvIn and kEvOut in callback(2nd parameter) if kEvIO is set,
+    //   because kEvIn and kEvOut, which can be set to poll simultaneously,
+    //   may not be triggered simultaneously.
+    //   kEvSignal and kEvTimer need not to be checked in callback(2nd parameter).
     kEvIn = 0x01,             // fd/socket event: fd can be read(EPOLLIN)
     kEvOut = 0x02,            // fd/socket event: fd can be write(EPOLLOUT)
     kEvIO = kEvIn|kEvOut,
@@ -39,33 +42,65 @@ namespace libev {
     kEvPersist = 0x10,        // persistent event
     kEvET = 0x20,             // use edge trigger(EPOLLET)
 
-    // 1.The following event flag must not be set in Event.event,
-    //   they are to be checked in callback.
-    // 2.kEvErr is only for kEvIO.
-    // 3.kEvCanceled is due to a cancellation by user or the reactor.
-    kEvErr = 0x1000,          // error(EPOLLERR|EPOLLHUP)
-    kEvCanceled = 0x2000,     // deleted by the user, or canceled by libev's cleanup
+
+    // The following event flag must not be set in Event.event,
+    //   they are to be checked in callback(2nd parameter).
+    kEvErr = 0x1000,          // error(EPOLLERR|EPOLLHUP) only for kEvIO
+    kEvCanceled = 0x2000,     // canceled by the user or library cleanup
+
+
+    // The following event flag are private. No attetion please.
+    kInAllList = 0x01,
+    kInActiveList = 0x02,
+    kInCallback = 0x04,
   };
 
-  typedef void (*ev_callback)(int fd_or_signum, int event, void * user_data);
+  typedef void (*ev_callback)(int fd, int event, void * user_data);
 
+
+  class ReactorImpl;
 
   struct Event
   {
-  private:
-    DISALLOW_COPY_AND_ASSIGN(Event);
-
   public:
-    int fd;                   // fd(kEvIn, kEvOut) or signal(kEvSignal)
+    // The following members are required fields, but they can not be modified after being added to reactor.
+    int fd;                   // fd(kEvIn, kEvOut), signal number(kEvSignal), heap index(kEvTimer)
     timespec timeout;         // relative timeout(kEvTimer)
     int event;                // event flags(bit or of EventFlag)
     ev_callback callback;     // callback
     void * user_data;         // user data
-    EventInternal internal;   // internal data(DO NOT modify it!!!)
 
+  public:
     Event();
     Event(int _fd, int _event, ev_callback _callback, void * _udata);
+    int Del();
+    int Cancel();
+
+  private:
+    DISALLOW_COPY_AND_ASSIGN(Event);
+    friend class ReactorImpl;
+
+    ListNode all;// node in all event list(signal and timer events)
+    ListNode active;// node in active event list(all events)
+
+    int real_event;// the real event to be passed to callback
+    int triggered_times;// the times that the signal/timer is triggered but pending(signal and timer events)
+    int flags;// bit or of EventInternalFlag
+    ReactorImpl * reactor;
+
+    // return 1, in
+    // return 0, not in
+    int IsInList()const {return flags & kInAllList;}
+    void AddToList(List * list);
+    void DelFromList(List * list);
+
+    // return 1, active
+    // return 0, not active
+    int IsActive()const {return flags & kInActiveList;}
+    void AddToActive(List * active_list);
+    void DelFromActive(List * active_list);
   };
+
 
   // check Event.event
   int CheckInputEventFlag(int flags);
@@ -75,95 +110,42 @@ namespace libev {
   /************************************************************************/
   class Reactor
   {
-  public:
-    // delete the return value if it is no longer used
-    //static Reactor * CreateIOReactor();// for test
-    static Reactor * CreateSignalReactor();// for test
-    //static Reactor * CreateTimerReactor();// for test
-    //static Reactor * CreateReactor();
-  public:
-    virtual ~Reactor();
+  private:
+    DISALLOW_COPY_AND_ASSIGN(Reactor);
+    ReactorImpl * impl_;
 
-    virtual int Init() = 0;
-    virtual void UnInit() = 0;
+  public:
+    Reactor();
+    ~Reactor();
 
-    virtual int Add(Event * ev) = 0;
-    virtual int Del(Event * ev) = 0;
+    int Init();
+    void UnInit();
+
+    int Add(Event * ev);
+    int Del(Event * ev);
+    int Cancel(Event * ev);
 
     // execute at most one ready event
     // return the number of executed event
-    virtual int PollOne() = 0;
+    int PollOne();
     // execute all ready events
     // return the number of executed event
-    virtual int Poll() = 0;
+    int Poll();
+    // if 'limit' > 0, execute at most 'limit' ready events
+    // if 'limit' == 0, execute all ready events
+    // return the number of executed event
+    int Poll(int limit);
     // execute at most one event, or until 'Stop' is called
     // return the number of executed event
-    virtual int RunOne() = 0;
+    int RunOne();
     // execute all ready events, or until 'Stop' is called
     // return the number of executed event
-    virtual int Run() = 0;
-    virtual int Stop() = 0;
-  };
-
-
-  /************************************************************************/
-  class SignalReactor : public Reactor
-  {
-  private:
-    DISALLOW_COPY_AND_ASSIGN(SignalReactor);
-    class Impl;
-    Impl * impl_;
-
-  public:
-    SignalReactor();
-    virtual ~SignalReactor();
-
-    virtual int Init();
-    virtual void UnInit();
-
-    virtual int Add(Event * ev);
-    virtual int Del(Event * ev);
-
-    virtual int PollOne();
-    virtual int Poll();
-    virtual int RunOne();
-    virtual int Run();
-    virtual int Stop();
-
-    // return the inner fd
-    int fd()const;
-    // return 1, readable
-    // return 0, unreadable
-    // return -1, interrupted
-    int GetReadability(int immediate);
-    void OnReadable();
-  };
-
-
-  /************************************************************************/
-  class EpollReactor : public Reactor
-  {
-  private:
-    DISALLOW_COPY_AND_ASSIGN(EpollReactor);
-    class Impl;
-    Impl * impl_;
-
-  public:
-    EpollReactor();
-    explicit EpollReactor(SignalReactor * signal);
-    virtual ~EpollReactor();
-
-    virtual int Init();
-    virtual void UnInit();
-
-    virtual int Add(Event * ev);
-    virtual int Del(Event * ev);
-
-    virtual int PollOne();
-    virtual int Poll();
-    virtual int RunOne();
-    virtual int Run();
-    virtual int Stop();
+    int Run();
+    // if 'limit' > 0, execute at most 'limit' events, or until interrupted
+    // if 'limit' == 0, execute all events, or until interrupted
+    // return the number of executed event
+    int Run(int limit);
+    int Stop();
   };
 }
 

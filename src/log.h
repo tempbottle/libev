@@ -81,5 +81,4 @@ namespace libev {
   } \
 } while(0)
 
-
 #endif

@@ -17,12 +17,10 @@ if not env.GetOption('clean'):
     env = conf.Finish()
 
 SOURCE=Split(
-    'src/epoll.cc '
     'src/ev.cc '
-    'src/header.cc '
     'src/interrupter.cc '
     'src/log.cc '
-    'src/signal.cc '
+    'src/reactor.cc '
 )
 
 env.Append(CCFLAGS = ' -Wall -g')
