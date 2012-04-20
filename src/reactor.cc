@@ -36,7 +36,7 @@ namespace libev {
     std::vector<epoll_event> ep_ev_;// for epoll_wait
 
     // common members
-    List ev_list_;// event list (timer and io)
+    List ev_list_;// event list
     List sig_ev_list_;// signal event list
     List active_ev_list_;// active event list
     Interrupter interrupter_;
@@ -462,6 +462,7 @@ namespace libev {
       }
 
       // 3.epoll_wait
+      EV_LOG(kDebug, "epoll_wait");
       do result = epoll_wait(epfd_, &ep_ev_[0], epevents_size, timeout);
       while (result == -1 && errno == EINTR);
 
@@ -528,13 +529,13 @@ namespace libev {
           {
             event_in->real_event = real_event;
             event_in->AddToActive(&active_ev_list_);
-            EV_LOG(kDebug, "IO Event(%p) is active", ev);
+            EV_LOG(kDebug, "IO Event(%p) is active", event_in);
           }
-          if (event_out)
+          if (event_out && event_out != event_in)
           {
             event_out->real_event = real_event;
             event_out->AddToActive(&active_ev_list_);
-            EV_LOG(kDebug, "IO Event(%p) is active", ev);
+            EV_LOG(kDebug, "IO Event(%p) is active", event_out);
           }
         }
       }

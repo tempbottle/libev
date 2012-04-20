@@ -30,5 +30,6 @@ env.StaticLibrary('ev', SOURCE)
 
 env.Program('log_test',                 'src/log_test.cc')
 env.Program('interrupter_test',         'src/interrupter_test.cc')
+env.Program('io_test',                  'src/io_test.cc')
 env.Program('signal_test',              'src/signal_test.cc')
 
