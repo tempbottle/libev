@@ -12,19 +12,15 @@
 
 using namespace libev;
 
-static int counter;
-
-
 int set_non_block(int fd)
 {
   int opt = 1;
   return ioctl(fd, FIONBIO, &opt);
 }
 
-int connect_host(int sockfd, int proto, const char * hostname, unsigned short port)
+int connect_host(int sockfd, const char * hostname, unsigned short port)
 {
   struct sockaddr_in s4;
-  struct sockaddr_in6 s6;
   struct hostent * host;
 
   host = gethostbyname(hostname);
@@ -34,27 +30,16 @@ int connect_host(int sockfd, int proto, const char * hostname, unsigned short po
     return -1;
   }
 
-  if (host->h_addrtype != proto)
+  if (host->h_addrtype != AF_INET)
   {
     errno = EPFNOSUPPORT;
     return -1;
   }
 
-  if (proto == AF_INET)
-  {
-    s4.sin_family = AF_INET;
-    s4.sin_port = htons(port);
-    memcpy(&s4.sin_addr, host->h_addr_list[0], 4);
-    return connect(sockfd, (const struct sockaddr *)&s4, sizeof(s4));
-  }
-  else
-  {
-    s6.sin6_family = AF_INET6;
-    s6.sin6_flowinfo = 0;
-    s6.sin6_port = htons(port);
-    memcpy(&s6.sin6_addr, host->h_addr_list[0], 16);
-    return connect(sockfd, (const struct sockaddr *)&s6, sizeof(s6));
-  }
+  s4.sin_family = AF_INET;
+  s4.sin_port = htons(port);
+  memcpy(&s4.sin_addr, host->h_addr_list[0], 4);
+  return connect(sockfd, (const struct sockaddr *)&s4, sizeof(s4));
 }
 
 
@@ -62,10 +47,10 @@ static void Test0_Callback(int fd, int event, void * user_data)
 {
   EV_LOG(kInfo, "Test0_Callback");
 
+  Event * ev = static_cast<Event *>(user_data);
+
   if (event & (kEvErr|kEvCanceled))
   {
-    Event * ev = static_cast<Event *>(user_data);
-
     if (event & kEvErr)
     {
       int err;
@@ -85,7 +70,6 @@ static void Test0_Callback(int fd, int event, void * user_data)
   {
     EV_LOG(kInfo, "Test0_Callback connect OK");
 
-    Event * ev = static_cast<Event *>(user_data);
     close(ev->fd);
     delete ev;
     return;
@@ -106,7 +90,7 @@ static void Test0()
   sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
   EV_VERIFY(sockfd != -1);
   EV_VERIFY(set_non_block(sockfd) == 0);
-  res = connect_host(sockfd, AF_INET, "sdl-adgagadev", 80);// open
+  res = connect_host(sockfd, "sdl-adgagadev", 80);// open
   EV_VERIFY(res == -1 && errno == EINPROGRESS);
 
   ev[0] = new Event;
@@ -118,7 +102,7 @@ static void Test0()
   sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
   EV_VERIFY(sockfd != -1);
   EV_VERIFY(set_non_block(sockfd) == 0);
-  res = connect_host(sockfd, AF_INET, "sdl-adgagadev", 8123);// not open
+  res = connect_host(sockfd, "sdl-adgagadev", 8123);// not open
   EV_VERIFY(res == -1 && errno == EINPROGRESS);
 
   ev[1] = new Event;
@@ -138,9 +122,9 @@ static void Test0()
 }
 
 
+
 int main()
 {
   Test0();
-
   return 0;
 }

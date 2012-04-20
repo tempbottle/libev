@@ -376,10 +376,13 @@ namespace libev {
     // put back 'ev' that should be put back and also 'ev' is not canceled
     AddToList(ev);
 
-    if (--ev->triggered_times)
+    if (ev->event & (kEvSignal|kEvTimer))
     {
-      ev->AddToActive(&active_ev_list_);
-      EV_LOG(kDebug, "Event(%p) is still active, times=%d", ev, ev->triggered_times);
+      if (--ev->triggered_times > 0)
+      {
+        ev->AddToActive(&active_ev_list_);
+        EV_LOG(kDebug, "Event(%p) is still active, times=%d", ev, ev->triggered_times);
+      }
     }
   }
 
