@@ -9,6 +9,7 @@
 #include "log.h"
 #include "interrupter.h"
 #include "header.h"
+#include <vector>
 
 namespace libev {
 
@@ -23,8 +24,19 @@ namespace libev {
     sigset_t old_sigset_;
     int sig_ev_refcount_[_NSIG];
 
+    // members about io events
+    struct IOEvent
+    {
+      Event * event_in;
+      Event * event_out;
+      IOEvent() : event_in(0), event_out(0) {}
+    };
+    int epfd_;
+    std::vector<IOEvent> fd_2_io_ev_;// fd to IOEvent array
+    std::vector<epoll_event> ep_ev_;// for epoll_wait
+
     // common members
-    List ev_list_;// event list (timer and IO)
+    List ev_list_;// event list (timer and io)
     List sig_ev_list_;// signal event list
     List active_ev_list_;// active event list
     Interrupter interrupter_;
@@ -36,23 +48,33 @@ namespace libev {
   private:
     void AddSignalRef(int signum);
     void ReleaseSignalRef(int signum);
+    void ResizeIOEvent(int fd);
 
     // add/del 'ev' to/from 'ev_list_' or 'sig_ev_list_' according to its type
     void AddToList(Event * ev);
     void DelFromList(Event * ev);
     // setup/cleanup 'ev'(mainly affairs about system) according to its type
-    void Setup(Event * ev);
+    int Setup(Event * ev);
     void CleanUp(Event * ev);
+    // cancel 'ev' inside callback
     void CancelInsideCB(Event * ev);
+    // cancel 'ev' outside callback
     void CancelOutsideCB(Event * ev);
+    // cancel all events
     void CancelAll();
+
+    // invoke callback of 'ev'
     void InvokeCallback(Event * ev);
 
-    // return 1, readable
-    // return 0, unreadable
-    // return -1, interrupted(if immediate is non-zero)
-    int GetReadability(int immediate);
     void OnSignalReadable();
+
+    // poll and execute ready events
+    // if 'limit' > 0, execute at most 'limit' ready events
+    // if 'limit' == 0, execute all ready events
+    // if 'blocking' == 1, run until no new ready events, or until interrupted
+    // if 'blocking' == 0, run until no events, or until interrupted
+    // return the number of executed event
+    int PollImpl(int limit, int blocking);
 
   public:
     ReactorImpl();
@@ -109,6 +131,20 @@ namespace libev {
     }
   }
 
+  void ReactorImpl::ResizeIOEvent(int fd)
+  {
+    EV_ASSERT(fd >= 0);
+
+    size_t sfd = static_cast<size_t>(fd);
+    size_t new_size = fd_2_io_ev_.size();
+    if (sfd < new_size)
+      return;
+
+    while (new_size <= sfd)
+      new_size <<= 1;//double the size of 'fd_2_io_ev_'
+    fd_2_io_ev_.resize(new_size);// may throw
+  }
+
   void ReactorImpl::AddToList(Event * ev)
   {
     if (ev->event & kEvSignal)
@@ -125,20 +161,128 @@ namespace libev {
       ev->DelFromList(&ev_list_);
   }
 
-  void ReactorImpl::Setup(Event * ev)
+  int ReactorImpl::Setup(Event * ev)
   {
     if (ev->event & kEvSignal)
+    {
       AddSignalRef(ev->fd);
-    // TODO
+    }
+    //else if (ev->event & kEvTimer)
+    //{
+    //  // TODO timer
+    //}
+    else if (ev->event & kEvIO)
+    {
+      int fd = ev->fd;
+      ResizeIOEvent(fd);
+      IOEvent * io_event = &fd_2_io_ev_[fd];
 
+      if ((ev->event & kEvIn) && io_event->event_in)
+      {
+        EV_LOG(kError, "(Another) IO Event(%p) has been added before", io_event->event_in);
+        return kEvExists;
+      }
+      if ((ev->event & kEvOut) && io_event->event_out)
+      {
+        EV_LOG(kError, "(Another) IO Event(%p) has been added before", io_event->event_out);
+        return kEvExists;
+      }
+
+      int op = EPOLL_CTL_ADD;
+      int events = 0;
+      if (ev->event & kEvET)
+        events |= EPOLLET;
+
+      if (io_event->event_in)
+      {
+        events |= EPOLLIN;
+        op = EPOLL_CTL_MOD;
+      }
+      if (io_event->event_out)
+      {
+        events |= EPOLLOUT;
+        op = EPOLL_CTL_MOD;
+      }
+      if (ev->event & kEvIn)
+        events |= EPOLLIN;
+      if (ev->event & kEvOut)
+        events |= EPOLLOUT;
+
+      epoll_event epev;
+      epev.data.u64 = 0;// suppress valgrind warnings
+      epev.data.fd = fd;
+      epev.events = events;
+      if (epoll_ctl(epfd_, op, fd, &epev) == -1)
+      {
+        EV_LOG(kError, "epoll_ctl: %s", strerror(errno));
+        return kEvFailure;
+      }
+
+      if (ev->event & kEvIn)
+        io_event->event_in = ev;
+      if (ev->event & kEvOut)
+        io_event->event_out = ev;
+    }
+
+    ev->real_event = 0;
+    ev->triggered_times = 0;
+    ev->flags = 0;
     ev->reactor = this;
+    return kEvOK;
   }
 
   void ReactorImpl::CleanUp(Event * ev)
   {
+    int fd = ev->fd;
+
     if (ev->event & kEvSignal)
-      ReleaseSignalRef(ev->fd);
-    // TODO
+    {
+      ReleaseSignalRef(fd);
+    }
+    //else if (ev->event & kEvTimer)
+    //{
+    //  // TODO timer
+    //}
+    else if (ev->event & kEvIO)
+    {
+      IOEvent * io_event = &fd_2_io_ev_[fd];
+      int op = EPOLL_CTL_DEL;
+      int events = 0;
+      int del_in = 1, del_out = 1;
+
+      if (ev->event & kEvIn)
+        events |= EPOLLIN;
+      if (ev->event & kEvOut)
+        events |= EPOLLOUT;
+
+      // 'ev->event' has only one flag: kEvIn or kEvOut
+      if ((events & (EPOLLIN|EPOLLOUT)) != (EPOLLIN|EPOLLOUT))
+      {
+        if ((events & EPOLLIN) && io_event->event_out)
+        {
+          del_out = 0;
+          events = EPOLLOUT;
+          op = EPOLL_CTL_MOD;
+        }
+        else if ((events & EPOLLOUT) && io_event->event_in)
+        {
+          del_in = 0;
+          events = EPOLLIN;
+          op = EPOLL_CTL_MOD;
+        }
+      }
+
+      epoll_event epev;
+      epev.data.u64 = 0;// suppress valgrind warnings
+      epev.events = events;
+      epev.data.fd = fd;
+      EV_VERIFY(epoll_ctl(epfd_, op, fd, &epev) != -1);
+
+      if (del_in)
+        io_event->event_in = 0;
+      if (del_out)
+        io_event->event_out = 0;
+    }
 
     ev->reactor = 0;
   }
@@ -183,13 +327,13 @@ namespace libev {
 
     for (node = ev_list_.front(); node != ev_list_.end() ; node = node->next)
     {
-      ev = ev_container_of(node, Event, all);
+      ev = ev_container_of(node, Event, _all);
       CancelOutsideCB(ev);
     }
 
     for (node = sig_ev_list_.front(); node != sig_ev_list_.end() ; node = node->next)
     {
-      ev = ev_container_of(node, Event, all);
+      ev = ev_container_of(node, Event, _all);
       CancelOutsideCB(ev);
     }
   }
@@ -239,59 +383,6 @@ namespace libev {
     }
   }
 
-  int ReactorImpl::GetReadability(int immediate)// TODO
-  {
-    if (immediate)
-    {
-      pollfd poll_fds[1];
-      poll_fds[0].fd = sigfd_;
-      poll_fds[0].events = POLLIN;
-      int result = poll(poll_fds, 1, 0);
-
-      if (result == 0)
-      {
-        return 0;
-      }
-      else
-      {
-        EV_ASSERT(poll_fds[0].revents & POLLIN);
-        return 1;
-      }
-    }
-    else
-    {
-      pollfd poll_fds[2];
-      poll_fds[0].fd = sigfd_;
-      poll_fds[0].events = POLLIN;
-      poll_fds[1].fd = interrupter_.fd();
-      poll_fds[1].events = POLLIN;
-
-      interrupter_.Reset();
-      int result;
-
-      do result = poll(poll_fds, 2, -1);
-      while (result == -1 && errno == EINTR);
-
-      EV_ASSERT(result != 0);
-      EV_ASSERT(result != -1);
-
-      if (poll_fds[0].revents & POLLIN)
-      {
-        // readable
-        return 1;
-      }
-
-      if (poll_fds[1].revents & POLLIN)
-      {
-        // interrupted
-        interrupter_.Reset();
-        return -1;
-      }
-
-      return 0;
-    }
-  }
-
   void ReactorImpl::OnSignalReadable()
   {
     signalfd_siginfo siginfo;
@@ -315,9 +406,7 @@ namespace libev {
       // traverse 'sig_ev_list_' to match all events targeting 'signum'
       for (node = sig_ev_list_.front(); node != sig_ev_list_.end() ; node = node->next)
       {
-        EV_ASSERT(node);
-
-        ev = ev_container_of(node, Event, all);
+        ev = ev_container_of(node, Event, _all);
 
         if (ev->fd == signum)
         {
@@ -332,13 +421,141 @@ namespace libev {
             ev->triggered_times++;
           }
 
-          EV_LOG(kDebug, "Event(%p) is active", ev);
+          EV_LOG(kDebug, "Signal Event(%p) is active", ev);
         }
       }
     }// for
   }
 
-  ReactorImpl::ReactorImpl() : sigfd_(-1)
+  int ReactorImpl::PollImpl(int limit, int blocking)
+  {
+    EV_ASSERT(limit >= 0);
+
+    int number = 0;
+    int i, result;
+    int epevents_size = static_cast<int>(ep_ev_.size());
+    ListNode * node;
+    Event * ev;
+    int timeout = (blocking)?(-1):(0);
+
+    for (;;)
+    {
+      // 1.handle active events in 'active_ev_list_'
+      while (!active_ev_list_.empty())
+      {
+        node = active_ev_list_.front();
+        ev = ev_container_of(node, Event, _active);
+        ev->DelFromActive(&active_ev_list_);
+
+        InvokeCallback(ev);
+        number++;
+
+        if (limit > 0 && number == limit)
+          return number;
+      }
+
+      // 2.check to quit in blocking mode
+      if (blocking && ev_list_.empty() && sig_ev_list_.empty())
+      {
+        EV_LOG(kDebug, "Event loop quits for no events");
+        return number;
+      }
+
+      // 3.epoll_wait
+      do result = epoll_wait(epfd_, &ep_ev_[0], epevents_size, timeout);
+      while (result == -1 && errno == EINTR);
+
+      if (result == -1)
+        return kEvFailure;
+
+      EV_ASSERT(result >= 0);
+
+      for (i=0; i<result; i++)
+      {
+        int fd = ep_ev_[i].data.fd;
+        int events = ep_ev_[i].events;
+
+        if (fd == interrupter_.fd())
+        {
+          // interrupted
+          interrupter_.Reset();
+          return number;
+        }
+        else if (fd == sigfd_)
+        {
+          // signal
+          EV_ASSERT(events & EPOLLIN);
+          OnSignalReadable();
+        }
+        //else if (fd == timerfd_)
+        //{
+        //  // TODO timer
+        //}
+        else
+        {
+          // io
+          IOEvent * io_event;
+          Event * event_in = 0;
+          Event * event_out = 0;
+          int real_event = 0;
+
+          io_event = &fd_2_io_ev_[fd];
+
+          if (events & (EPOLLERR|EPOLLHUP))
+          {
+            event_in = io_event->event_in;
+            event_out = io_event->event_out;
+            real_event |= kEvErr;
+            EV_ASSERT(event_in || event_out);
+          }
+          else
+          {
+            if (events & EPOLLIN)
+            {
+              event_in = io_event->event_in;
+              real_event |= kEvIn;
+              EV_ASSERT(event_in);
+            }
+            if (events & EPOLLOUT)
+            {
+              event_out = io_event->event_out;
+              real_event |= kEvOut;
+              EV_ASSERT(event_out);
+            }
+          }
+
+          if (event_in)
+          {
+            event_in->real_event = real_event;
+            event_in->AddToActive(&active_ev_list_);
+            EV_LOG(kDebug, "IO Event(%p) is active", ev);
+          }
+          if (event_out)
+          {
+            event_out->real_event = real_event;
+            event_out->AddToActive(&active_ev_list_);
+            EV_LOG(kDebug, "IO Event(%p) is active", ev);
+          }
+        }
+      }
+
+      // 4.check to quit in non-blocking mode
+      if (!blocking && result == 0 && active_ev_list_.empty())
+      {
+        EV_LOG(kDebug, "Event loop quits for no new ready events");
+        return number;
+      }
+
+      // 5.check and resize 'ep_ev_' to make epoll_wait get more results
+      if (result == epevents_size && epevents_size < 4096)// magic
+      {
+        epevents_size <<= 1;
+        ep_ev_.resize(epevents_size);// may throw
+      }
+    }// for
+  }
+
+  ReactorImpl::ReactorImpl() : sigfd_(-1), epfd_(-1)
   {
     EV_VERIFY(sigprocmask(0, 0, &old_sigset_) == 0);
   }
@@ -353,6 +570,10 @@ namespace libev {
   {
     UnInit();
 
+    // initialize members that may throw first
+    fd_2_io_ev_.resize(32);// magic // may throw
+    ep_ev_.resize(32);// magic // may throw
+
     sigemptyset(&sigset_);
     sigfd_ = signalfd(-1, &sigset_, SFD_CLOEXEC|SFD_NONBLOCK);
     if (sigfd_ == -1)
@@ -360,14 +581,63 @@ namespace libev {
       EV_LOG(kError, "signalfd: %s", strerror(errno));
       return kEvFailure;
     }
-
     for (int i=0; i<_NSIG; i++)
+    {
       sig_ev_refcount_[i] = 0;
+    }
 
-    if (interrupter_.Init() != kEvOK)
+    epfd_ = epoll_create(20000);// magic
+    if (epfd_ == -1)
     {
       safe_close(sigfd_);
       sigfd_ = -1;
+      EV_LOG(kError, "epoll_create: %s", strerror(errno));
+      return kEvFailure;
+    }
+    // close after execve
+    if (fcntl(epfd_, F_SETFD, 1) == -1)
+    {
+      EV_LOG(kWarning, "fcntl: %s", strerror(errno));
+      // ignore the failure of fcntl
+    }
+
+    if (interrupter_.Init() != kEvOK)
+    {
+      safe_close(epfd_);
+      epfd_ = -1;
+      safe_close(sigfd_);
+      sigfd_ = -1;
+      return kEvFailure;
+    }
+    interrupter_.Reset();
+
+    epoll_event signal_event;
+    signal_event.data.u64 = 0;// suppress valgrind warnings
+    signal_event.data.fd = sigfd_;
+    signal_event.events = EPOLLIN|EPOLLET;
+    if (epoll_ctl(epfd_, EPOLL_CTL_ADD, sigfd_, &signal_event) == -1)
+    {
+      interrupter_.UnInit();
+      safe_close(epfd_);
+      epfd_ = -1;
+      safe_close(sigfd_);
+      sigfd_ = -1;
+      EV_LOG(kError, "epoll_ctl: %s", strerror(errno));
+      return kEvFailure;
+    }
+
+    epoll_event inter_event;
+    inter_event.data.u64 = 0;// suppress valgrind warnings
+    inter_event.data.fd = interrupter_.fd();
+    inter_event.events = EPOLLIN|EPOLLET;
+    if (epoll_ctl(epfd_, EPOLL_CTL_ADD, interrupter_.fd(), &inter_event) == -1)
+    {
+      interrupter_.UnInit();
+      safe_close(epfd_);
+      epfd_ = -1;
+      safe_close(sigfd_);
+      sigfd_ = -1;
+      EV_LOG(kError, "epoll_ctl: %s", strerror(errno));
       return kEvFailure;
     }
 
@@ -376,7 +646,16 @@ namespace libev {
 
   void ReactorImpl::UnInit()
   {
+    CancelAll();
+    Poll(0);
+
     interrupter_.UnInit();
+
+    if (epfd_ != -1)
+    {
+      safe_close(epfd_);
+      epfd_ = -1;
+    }
 
     if (sigfd_ != -1)
     {
@@ -384,8 +663,8 @@ namespace libev {
       sigfd_ = -1;
     }
 
-    CancelAll();
-    Poll(0);
+    std::vector<IOEvent>().swap(fd_2_io_ev_);
+    std::vector<epoll_event>().swap(ep_ev_);
   }
 
   int ReactorImpl::Add(Event * ev)
@@ -406,11 +685,9 @@ namespace libev {
       return kEvExists;
     }
 
-    ev->real_event = 0;
-    ev->triggered_times = 0;
-    ev->flags = 0;
+    if ((ret = Setup(ev)) != kEvOK)
+      return ret;
 
-    Setup(ev);
     AddToList(ev);
     EV_LOG(kDebug, "Event(%p) has been added", ev);
     return kEvOK;
@@ -420,6 +697,13 @@ namespace libev {
   {
     if (ev == 0)
     {
+      errno = EINVAL;
+      return kEvFailure;
+    }
+
+    if (ev->reactor != this)
+    {
+      EV_LOG(kError, "Event(%p) is not added before", ev);
       errno = EINVAL;
       return kEvFailure;
     }
@@ -435,9 +719,9 @@ namespace libev {
       EV_LOG(kDebug, "Event(%p) is being deleted by user", ev);
 
       DelFromList(ev);
-      CleanUp(ev);
       if (ev->IsActive())
         ev->DelFromActive(&active_ev_list_);
+      CleanUp(ev);
     }
 
     EV_LOG(kDebug, "Event(%p) has been deleted", ev);
@@ -448,6 +732,13 @@ namespace libev {
   {
     if (ev == 0)
     {
+      errno = EINVAL;
+      return kEvFailure;
+    }
+
+    if (ev->reactor != this)
+    {
+      EV_LOG(kError, "Event(%p) is not added before", ev);
       errno = EINVAL;
       return kEvFailure;
     }
@@ -469,81 +760,14 @@ namespace libev {
     }
   }
 
-  int ReactorImpl::Poll(int limit)// TODO
+  int ReactorImpl::Poll(int limit)
   {
-    EV_ASSERT(limit >= 0);
-
-    int number = 0;
-    ListNode * node;
-    Event * ev;
-
-    for (;;)
-    {
-      while (!active_ev_list_.empty())
-      {
-        node = active_ev_list_.front();
-        EV_ASSERT(node);
-
-        ev = ev_container_of(node, Event, active);
-        ev->DelFromActive(&active_ev_list_);
-
-        InvokeCallback(ev);
-        number++;
-
-        if (limit > 0 && number == limit)
-          return number;
-      }
-
-      if (GetReadability(1) == 1)
-        OnSignalReadable();
-      else
-        return number;
-    }
+    return PollImpl(limit, 0);
   }
 
-  int ReactorImpl::Run(int limit)// TODO
+  int ReactorImpl::Run(int limit)
   {
-    EV_ASSERT(limit >= 0);
-
-    int number = 0;
-    ListNode * node;
-    Event * ev;
-    int result;
-
-    for (;;)
-    {
-      while (!active_ev_list_.empty())
-      {
-        node = active_ev_list_.front();
-        EV_ASSERT(node);
-
-        ev = ev_container_of(node, Event, active);
-        ev->DelFromActive(&active_ev_list_);
-
-        InvokeCallback(ev);
-        number++;
-
-        if (limit > 0 && number == limit)
-          return number;
-      }
-
-      if (ev_list_.empty() && sig_ev_list_.empty())
-      {
-        EV_LOG(kDebug, "Event loop quits for no events");
-        return number;
-      }
-
-      result = GetReadability(0);
-      if (result == -1)
-      {
-        EV_LOG(kDebug, "Event loop quits for an interruption");
-        return number;
-      }
-      else if (result == 1)
-        OnSignalReadable();
-      else
-        EV_ASSERT(0);
-    }
+    return PollImpl(limit, 1);
   }
 
   int ReactorImpl::Stop()
@@ -577,7 +801,6 @@ namespace libev {
       errno = EINVAL;
       return kEvFailure;
     }
-
     return reactor->Del(this);
   }
 
@@ -588,7 +811,6 @@ namespace libev {
       errno = EINVAL;
       return kEvFailure;
     }
-
     return reactor->Cancel(this);
   }
 }

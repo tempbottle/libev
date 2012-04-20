@@ -20,28 +20,28 @@ namespace libev {
   void Event::AddToList(List * list)
   {
     EV_ASSERT(!IsInList());
-    list->push_back(&all);
+    list->push_back(&_all);
     flags |= kInAllList;
   }
 
   void Event::DelFromList(List * list)
   {
     EV_ASSERT(IsInList());
-    list->erase(&all);
+    list->erase(&_all);
     flags &= ~kInAllList;
   }
 
   void Event::AddToActive(List * active_list)
   {
     EV_ASSERT(!IsActive());
-    active_list->push_back(&active);
+    active_list->push_back(&_active);
     flags |= kInActiveList;
   }
 
   void Event::DelFromActive(List * active_list)
   {
     EV_ASSERT(IsActive());
-    active_list->erase(&active);
+    active_list->erase(&_active);
     flags &= ~kInActiveList;
   }
 

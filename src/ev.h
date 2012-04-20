@@ -49,7 +49,7 @@ namespace libev {
     kEvCanceled = 0x2000,     // canceled by the user or library cleanup
 
 
-    // The following event flag are private. No attetion please.
+    // The following event flag are private. No attention please.
     kInAllList = 0x01,
     kInActiveList = 0x02,
     kInCallback = 0x04,
@@ -80,8 +80,8 @@ namespace libev {
     DISALLOW_COPY_AND_ASSIGN(Event);
     friend class ReactorImpl;
 
-    ListNode all;// node in all event list(signal and timer events)
-    ListNode active;// node in active event list(all events)
+    ListNode _all;// node in all event list
+    ListNode _active;// node in active event list
 
     int real_event;// the real event to be passed to callback
     int triggered_times;// the times that the signal/timer is triggered but pending(signal and timer events)
