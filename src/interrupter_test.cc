@@ -9,11 +9,12 @@
 #include "log.h"
 #include "interrupter.h"
 #include "header.h"
+#include <pthread.h>
 
 using namespace libev;
 
-Interrupter inter;
-const int times = 10;
+static Interrupter inter;
+static const int times = 10;
 
 static void * ThreadFunc(void *)
 {
@@ -69,7 +70,7 @@ int main()
   result = pthread_join(tid, 0);
   EV_VERIFY(result == 0);
 
-  close(epfd);
+  safe_close(epfd);
   inter.UnInit();
   return 0;
 }

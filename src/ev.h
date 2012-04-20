@@ -27,7 +27,7 @@ namespace libev {
   {
     // 1.The following event flag need to be set in Event.event.
     // 2.kEvIO, kEvSignal, kEvTimer are mutual exclusive.
-    // 3.all timers use a monotonic clock, timeouts are relative,
+    // 3.all timers use a monotonic clock, timeouts are absolute and monotonic,
     //   please use clock_gettime(CLOCK_MONOTONIC, ...) to get the clock time.
     // 4.EPOLLPRI is not practical, which is not included and implemented.
     // 5.Check kEvIn and kEvOut in callback(2nd parameter) if kEvIO is set,
@@ -38,13 +38,13 @@ namespace libev {
     kEvOut = 0x02,            // fd/socket event: fd can be write(EPOLLOUT)
     kEvIO = kEvIn|kEvOut,
     kEvSignal = 0x04,         // signal event
-    kEvTimer = 0x08,          // timer event
+    kEvTimer = 0x08,          // timer event(on which kEvPersist is ignored)
     kEvPersist = 0x10,        // persistent event
     kEvET = 0x20,             // use edge trigger(EPOLLET)
 
 
     // The following event flag must not be set in Event.event,
-    //   they are to be checked in callback(2nd parameter).
+    // they are to be checked in callback(2nd parameter).
     kEvErr = 0x1000,          // error(EPOLLERR|EPOLLHUP) only for kEvIO
     kEvCanceled = 0x2000,     // canceled by the user or library cleanup
 
@@ -63,9 +63,10 @@ namespace libev {
   struct Event
   {
   public:
-    // The following members are required fields, but they can not be modified after being added to reactor.
+    // The following members are required fields,
+    // but they can not be modified after being added to reactor.
     int fd;                   // fd(kEvIn, kEvOut), signal number(kEvSignal), heap index(kEvTimer)
-    timespec timeout;         // relative timeout(kEvTimer)
+    timespec timeout;         // absolute and monotonic timeout(kEvTimer)
     int event;                // event flags(bit or of EventFlag)
     ev_callback callback;     // callback
     void * user_data;         // user data
@@ -73,6 +74,7 @@ namespace libev {
   public:
     Event();
     Event(int _fd, int _event, ev_callback _callback, void * _udata);
+    Event(timespec * _timeout, ev_callback _callback, void * _udata);
     int Del();
     int Cancel();
 
@@ -84,7 +86,7 @@ namespace libev {
     ListNode _active;// node in active event list
 
     int real_event;// the real event to be passed to callback
-    int triggered_times;// the times that the signal/timer is triggered but pending(signal and timer events)
+    int triggered_times;// the times that the signal is triggered but pending(signal events)
     int flags;// bit or of EventInternalFlag
     ReactorImpl * reactor;
 
@@ -104,7 +106,7 @@ namespace libev {
 
   // check Event.event
   int CheckInputEventFlag(int flags);
-  int CheckEvent(Event * ev);
+  int CheckEvent(const Event * ev);
 
 
   /************************************************************************/

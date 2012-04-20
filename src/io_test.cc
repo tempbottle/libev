@@ -12,13 +12,13 @@
 
 using namespace libev;
 
-int set_non_block(int fd)
+static int set_non_block(int fd)
 {
   int opt = 1;
   return ioctl(fd, FIONBIO, &opt);
 }
 
-int connect_host(int sockfd, const char * hostname, unsigned short port)
+static int connect_host(int sockfd, const char * hostname, unsigned short port)
 {
   struct sockaddr_in s4;
   struct hostent * host;
@@ -42,7 +42,6 @@ int connect_host(int sockfd, const char * hostname, unsigned short port)
   return connect(sockfd, (const struct sockaddr *)&s4, sizeof(s4));
 }
 
-
 static void Test0_Callback(int fd, int event, void * user_data)
 {
   EV_LOG(kInfo, "Test0_Callback");
@@ -55,13 +54,13 @@ static void Test0_Callback(int fd, int event, void * user_data)
     {
       int err;
       socklen_t len = sizeof(err);
-      getsockopt(ev->fd, SOL_SOCKET, SO_ERROR, &err, &len);
+      EV_VERIFY(getsockopt(ev->fd, SOL_SOCKET, SO_ERROR, &err, &len) != -1);
       EV_LOG(kInfo, "Test0_Callback connect failed: %s", strerror(err));
     }
     if (event & kEvCanceled)
       EV_LOG(kInfo, "Test0_Callback kEvCanceled");
 
-    close(ev->fd);
+    safe_close(ev->fd);
     delete ev;
     return;
   }
@@ -70,7 +69,7 @@ static void Test0_Callback(int fd, int event, void * user_data)
   {
     EV_LOG(kInfo, "Test0_Callback connect OK");
 
-    close(ev->fd);
+    safe_close(ev->fd);
     delete ev;
     return;
   }
@@ -80,10 +79,8 @@ static void Test0()
 {
   EV_LOG(kInfo, "Test 0: connect");
 
+  ScopedPtr<Reactor> reactor(new Reactor);
   Event * ev[2];
-  ScopedPtr<Reactor> reactor;
-  reactor.reset(new Reactor);
-
   int res;
   int sockfd;
 
@@ -92,7 +89,6 @@ static void Test0()
   EV_VERIFY(set_non_block(sockfd) == 0);
   res = connect_host(sockfd, "sdl-adgagadev", 80);// open
   EV_VERIFY(res == -1 && errno == EINPROGRESS);
-
   ev[0] = new Event;
   ev[0]->fd = sockfd;
   ev[0]->event = kEvOut|kEvET;
@@ -104,7 +100,6 @@ static void Test0()
   EV_VERIFY(set_non_block(sockfd) == 0);
   res = connect_host(sockfd, "sdl-adgagadev", 8123);// not open
   EV_VERIFY(res == -1 && errno == EINPROGRESS);
-
   ev[1] = new Event;
   ev[1]->fd = sockfd;
   ev[1]->event = kEvOut|kEvET;
@@ -118,10 +113,8 @@ static void Test0()
   reactor->Run();
   reactor.reset();
 
-  EV_LOG(kInfo, "\n");
+  EV_LOG(kInfo, "\n\n");
 }
-
-
 
 int main()
 {

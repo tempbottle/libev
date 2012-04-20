@@ -7,6 +7,7 @@
 */
 #include "ev.h"
 #include "log.h"
+#include "heap.h"
 #include "interrupter.h"
 #include "header.h"
 #include <vector>
@@ -23,6 +24,10 @@ namespace libev {
     sigset_t sigset_;
     sigset_t old_sigset_;
     int sig_ev_refcount_[_NSIG];
+
+    // members about timer events
+    int timerfd_;
+    Heap min_time_heap_;
 
     // members about io events
     struct IOEvent
@@ -48,6 +53,7 @@ namespace libev {
   private:
     void AddSignalRef(int signum);
     void ReleaseSignalRef(int signum);
+    void ScheduleTimer();
     void ResizeIOEvent(int fd);
 
     // add/del 'ev' to/from 'ev_list_' or 'sig_ev_list_' according to its type
@@ -67,6 +73,7 @@ namespace libev {
     void InvokeCallback(Event * ev);
 
     void OnSignalReadable();
+    void OnTimerReadable();
 
     // poll and execute ready events
     // if 'limit' > 0, execute at most 'limit' ready events
@@ -106,7 +113,7 @@ namespace libev {
       sigset_t tmp_sigset;
       sigemptyset(&tmp_sigset);
       sigaddset(&tmp_sigset, signum);
-      EV_VERIFY(sigprocmask(SIG_BLOCK, &tmp_sigset, 0) == 0);
+      EV_VERIFY(sigprocmask(SIG_BLOCK, &tmp_sigset, 0) != -1);
 
       EV_LOG(kDebug, "Signal(%d) has been blocked and added", signum);
     }
@@ -125,10 +132,24 @@ namespace libev {
       sigset_t tmp_sigset;
       sigemptyset(&tmp_sigset);
       sigaddset(&tmp_sigset, signum);
-      EV_VERIFY(sigprocmask(SIG_UNBLOCK, &tmp_sigset, 0) == 0);
+      EV_VERIFY(sigprocmask(SIG_UNBLOCK, &tmp_sigset, 0) != -1);
 
       EV_LOG(kDebug, "Signal(%d) has been unblocked and deleted", signum);
     }
+  }
+
+  void ReactorImpl::ScheduleTimer()
+  {
+    const Event * ev = min_time_heap_.top();
+
+    itimerspec timerspec;
+    timerspec.it_value = ev->timeout;
+    timerspec.it_interval.tv_sec = 0;
+    timerspec.it_interval.tv_nsec = 0;
+
+    EV_LOG(kDebug, "timerfd_settime: seconds=%ld nanoseconds=%ld",
+      static_cast<long>(timerspec.it_value.tv_sec), timerspec.it_value.tv_nsec);
+    EV_VERIFY(timerfd_settime(timerfd_, TFD_TIMER_ABSTIME, &timerspec, NULL) != -1);
   }
 
   void ReactorImpl::ResizeIOEvent(int fd)
@@ -137,6 +158,7 @@ namespace libev {
 
     size_t sfd = static_cast<size_t>(fd);
     size_t new_size = fd_2_io_ev_.size();
+    EV_ASSERT(new_size != 0);
     if (sfd < new_size)
       return;
 
@@ -167,10 +189,14 @@ namespace libev {
     {
       AddSignalRef(ev->fd);
     }
-    //else if (ev->event & kEvTimer)
-    //{
-    //  // TODO timer
-    //}
+    else if (ev->event & kEvTimer)
+    {
+      ev->fd = -1;
+      min_time_heap_.push(ev);
+
+      if (ev->fd == 0)
+        ScheduleTimer();
+    }
     else if (ev->event & kEvIO)
     {
       int fd = ev->fd;
@@ -212,6 +238,7 @@ namespace libev {
       epev.data.u64 = 0;// suppress valgrind warnings
       epev.data.fd = fd;
       epev.events = events;
+      EV_LOG(kDebug, "epoll_ctl: op=%d fd=%d", op, fd);
       if (epoll_ctl(epfd_, op, fd, &epev) == -1)
       {
         EV_LOG(kError, "epoll_ctl: %s", strerror(errno));
@@ -239,10 +266,10 @@ namespace libev {
     {
       ReleaseSignalRef(fd);
     }
-    //else if (ev->event & kEvTimer)
-    //{
-    //  // TODO timer
-    //}
+    else if (ev->event & kEvTimer)
+    {
+      min_time_heap_.erase(ev);
+    }
     else if (ev->event & kEvIO)
     {
       IOEvent * io_event = &fd_2_io_ev_[fd];
@@ -276,6 +303,7 @@ namespace libev {
       epev.data.u64 = 0;// suppress valgrind warnings
       epev.events = events;
       epev.data.fd = fd;
+      EV_LOG(kDebug, "epoll_ctl: op=%d fd=%d", op, fd);
       EV_VERIFY(epoll_ctl(epfd_, op, fd, &epev) != -1);
 
       if (del_in)
@@ -430,6 +458,46 @@ namespace libev {
     }// for
   }
 
+  void ReactorImpl::OnTimerReadable()
+  {
+    int result;
+    uint64_t expire;
+
+    for (;;)
+    {
+      do result = read(timerfd_, &expire, sizeof(expire));
+      while (result == -1 && errno == EINTR);
+
+      if (result == -1 && errno == EAGAIN)
+        break;
+    }
+
+    timespec now;
+    EV_VERIFY(clock_gettime(CLOCK_MONOTONIC, &now) != -1);
+
+    Event * ev;
+    while (!min_time_heap_.empty())
+    {
+      ev = min_time_heap_.top();
+
+      if (timespec_le(&ev->timeout, &now))
+      {
+        min_time_heap_.pop();
+
+        ev->real_event = ev->event;
+        ev->AddToActive(&active_ev_list_);
+
+        EV_LOG(kDebug, "Timer Event(%p) is active", ev);
+      }
+      else
+      {
+        break;
+      }
+    }
+
+    ScheduleTimer();
+  }
+
   int ReactorImpl::PollImpl(int limit, int blocking)
   {
     EV_ASSERT(limit >= 0);
@@ -468,6 +536,7 @@ namespace libev {
       EV_LOG(kDebug, "epoll_wait");
       do result = epoll_wait(epfd_, &ep_ev_[0], epevents_size, timeout);
       while (result == -1 && errno == EINTR);
+      EV_LOG(kDebug, "after epoll_wait");
 
       if (result == -1)
         return kEvFailure;
@@ -491,10 +560,12 @@ namespace libev {
           EV_ASSERT(events & EPOLLIN);
           OnSignalReadable();
         }
-        //else if (fd == timerfd_)
-        //{
-        //  // TODO timer
-        //}
+        else if (fd == timerfd_)
+        {
+          // timer
+          EV_ASSERT(events & EPOLLIN);
+          OnTimerReadable();
+        }
         else
         {
           // io
@@ -559,15 +630,15 @@ namespace libev {
     }// for
   }
 
-  ReactorImpl::ReactorImpl() : sigfd_(-1), epfd_(-1)
+  ReactorImpl::ReactorImpl() : sigfd_(-1), timerfd_(-1), epfd_(-1)
   {
-    EV_VERIFY(sigprocmask(0, 0, &old_sigset_) == 0);
+    EV_VERIFY(sigprocmask(0, 0, &old_sigset_) != -1);
   }
 
   ReactorImpl::~ReactorImpl()
   {
     UnInit();
-    EV_VERIFY(sigprocmask(SIG_SETMASK, &old_sigset_, 0) == 0);
+    EV_VERIFY(sigprocmask(SIG_SETMASK, &old_sigset_, 0) != -1);
   }
 
   int ReactorImpl::Init()
@@ -590,9 +661,20 @@ namespace libev {
       sig_ev_refcount_[i] = 0;
     }
 
+    timerfd_ = timerfd_create(CLOCK_MONOTONIC, 0);
+    if (timerfd_ == -1)
+    {
+      safe_close(sigfd_);
+      sigfd_ = -1;
+      EV_LOG(kError, "timerfd_create: %s", strerror(errno));
+      return kEvFailure;
+    }
+
     epfd_ = epoll_create(20000);// magic
     if (epfd_ == -1)
     {
+      safe_close(timerfd_);
+      timerfd_ = -1;
       safe_close(sigfd_);
       sigfd_ = -1;
       EV_LOG(kError, "epoll_create: %s", strerror(errno));
@@ -609,6 +691,8 @@ namespace libev {
     {
       safe_close(epfd_);
       epfd_ = -1;
+      safe_close(timerfd_);
+      timerfd_ = -1;
       safe_close(sigfd_);
       sigfd_ = -1;
       return kEvFailure;
@@ -624,6 +708,8 @@ namespace libev {
       interrupter_.UnInit();
       safe_close(epfd_);
       epfd_ = -1;
+      safe_close(timerfd_);
+      timerfd_ = -1;
       safe_close(sigfd_);
       sigfd_ = -1;
       EV_LOG(kError, "epoll_ctl: %s", strerror(errno));
@@ -639,6 +725,8 @@ namespace libev {
       interrupter_.UnInit();
       safe_close(epfd_);
       epfd_ = -1;
+      safe_close(timerfd_);
+      timerfd_ = -1;
       safe_close(sigfd_);
       sigfd_ = -1;
       EV_LOG(kError, "epoll_ctl: %s", strerror(errno));
@@ -659,6 +747,12 @@ namespace libev {
     {
       safe_close(epfd_);
       epfd_ = -1;
+    }
+
+    if (timerfd_ != -1)
+    {
+      safe_close(timerfd_);
+      timerfd_ = -1;
     }
 
     if (sigfd_ != -1)
@@ -781,7 +875,7 @@ namespace libev {
 
 
   /************************************************************************/
-  Reactor::Reactor() {impl_ = new ReactorImpl;}
+  Reactor::Reactor() {impl_ = new ReactorImpl;}// may throw
   Reactor::~Reactor() {delete impl_;}
   int Reactor::Init() {return impl_->Init();}
   void Reactor::UnInit() {impl_->UnInit();}

@@ -24,7 +24,7 @@ SOURCE=Split(
 )
 
 env.Append(CCFLAGS = ' -Wall -g')
-env.Append(LIBS = [File('libev.a'), 'pthread'])
+env.Append(LIBS = [File('libev.a'), 'pthread', 'rt'])
 
 env.StaticLibrary('ev', SOURCE)
 

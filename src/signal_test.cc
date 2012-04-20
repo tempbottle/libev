@@ -15,7 +15,6 @@ using namespace libev;
 
 static int counter;
 
-
 static void Test0_Callback(int signum, int event, void * user_data)
 {
   EV_LOG(kInfo, "Test0_Callback %d", signum);
@@ -35,8 +34,7 @@ static void Test0()
   counter = 0;
 
   Event * ev[4];
-  ScopedPtr<Reactor> reactor;
-  reactor.reset(new Reactor);
+  ScopedPtr<Reactor> reactor(new Reactor);
 
   ev[0] = new Event;
   ev[0]->fd = SIGINT;
@@ -76,7 +74,7 @@ static void Test0()
 
   EV_VERIFY(counter == 3);
 
-  EV_LOG(kInfo, "\n");
+  EV_LOG(kInfo, "\n\n");
 }
 
 
@@ -96,8 +94,7 @@ static void Test1()
   counter = 0;
 
   Event * ev[2];
-  ScopedPtr<Reactor> reactor;
-  reactor.reset(new Reactor);
+  ScopedPtr<Reactor> reactor(new Reactor);
 
   ev[0] = new Event;
   ev[0]->fd = SIGINT;
@@ -123,7 +120,7 @@ static void Test1()
 
   EV_VERIFY(counter == 2);
 
-  EV_LOG(kInfo, "\n");
+  EV_LOG(kInfo, "\n\n");
 }
 
 
@@ -172,8 +169,7 @@ static void Test2()
 
   Event * ev[4];
   Test2_Helper helper[2];
-  ScopedPtr<Reactor> reactor;
-  reactor.reset(new Reactor);
+  ScopedPtr<Reactor> reactor(new Reactor);
 
   ev[0] = new Event;
   ev[1] = new Event;
@@ -220,7 +216,7 @@ static void Test2()
 
   EV_VERIFY(counter == 3);
 
-  EV_LOG(kInfo, "\n");
+  EV_LOG(kInfo, "\n\n");
 }
 
 
@@ -250,8 +246,7 @@ static void Test3()
   counter = 0;
 
   Event * ev[4];
-  ScopedPtr<Reactor> reactor;
-  reactor.reset(new Reactor);
+  ScopedPtr<Reactor> reactor(new Reactor);
 
   ev[0] = new Event;
   ev[1] = new Event;
@@ -294,7 +289,7 @@ static void Test3()
 
   EV_VERIFY(counter == 4);
 
-  EV_LOG(kInfo, "\n");
+  EV_LOG(kInfo, "\n\n");
 }
 
 
@@ -315,8 +310,7 @@ static void Test4()
   counter = 0;
 
   Event * ev[2];
-  ScopedPtr<Reactor> reactor;
-  reactor.reset(new Reactor);
+  ScopedPtr<Reactor> reactor(new Reactor);
 
   ev[0] = new Event;
   ev[0]->fd = SIGINT;
@@ -341,7 +335,7 @@ static void Test4()
 
   EV_VERIFY(counter == 2);
 
-  EV_LOG(kInfo, "\n");
+  EV_LOG(kInfo, "\n\n");
 }
 
 
@@ -373,8 +367,7 @@ static void Test5()
   counter = 0;
 
   Event * ev[2];
-  ScopedPtr<Reactor> reactor;
-  reactor.reset(new Reactor);
+  ScopedPtr<Reactor> reactor(new Reactor);
 
   ev[0] = new Event;
   ev[0]->fd = SIGINT;
@@ -399,7 +392,7 @@ static void Test5()
 
   EV_VERIFY(counter == 6);
 
-  EV_LOG(kInfo, "\n");
+  EV_LOG(kInfo, "\n\n");
 }
 
 

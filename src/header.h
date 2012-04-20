@@ -5,7 +5,7 @@
 * @date
 * @version
 *
-* internal/private header
+*
 */
 #ifndef LIBEV_HEADER_H
 #define LIBEV_HEADER_H
@@ -30,10 +30,8 @@
 #include <time.h>
 #include <sys/time.h>
 #include <syslog.h>
-#include <pthread.h>
 #include <signal.h>
 #include <fcntl.h>
-#include <poll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -171,5 +169,53 @@ inline int eventfd(unsigned int initval, int flags)
 # endif
 }
 #endif/*HAVE_SYS_EVENTFD*/
+
+/************************************************************************/
+/*timespec functions*/
+/************************************************************************/
+#define timespec_isset(tvp) ((tvp)->tv_sec || (tvp)->tv_nsec)
+#define timespec_clear(tvp) (tvp)->tv_sec = (tvp)->tv_nsec = 0
+
+#define timespec_cmp(tvp,uvp,cmp) \
+  ((tvp)->tv_sec cmp (uvp)->tv_sec || \
+  ((tvp)->tv_sec == (uvp)->tv_sec && (tvp)->tv_nsec cmp (uvp)->tv_nsec))
+#define timespec_less(a, b) timespec_cmp(a, b, <)
+#define timespec_greater(a, b) timespec_cmp(a, b, >)
+#define timespec_equal(a, b) timespec_cmp(a, b, ==)
+#define timespec_ge(a, b) (!timespec_less(a, b))
+#define timespec_le(a, b) (!timespec_greater(a, b))
+#define timespec_ne(a, b) (!timespec_equal(a, b))
+
+#define timespec_subto_ms(a, b) (((a).tv_sec - (b).tv_sec)*1000 + ((a).tv_nsec - (b).tv_nsec)/1000)
+#define timespec_subto_ns(a, b) (((a).tv_sec - (b).tv_sec)*1000000 + ((a).tv_nsec - (b).tv_nsec))
+
+inline void timespec_fix(struct timespec * tv)
+{
+  while (tv->tv_nsec < 0)
+  {
+    tv->tv_sec--;
+    tv->tv_nsec += 1000000000;
+  }
+
+  while (tv->tv_nsec >= 1000000000)
+  {
+    tv->tv_sec++;
+    tv->tv_nsec -= 1000000000;
+  }
+}
+
+inline void timespec_addto(struct timespec * a, const struct timespec * b)
+{
+  a->tv_sec += b->tv_sec;
+  a->tv_nsec += b->tv_nsec;
+  timespec_fix(a);
+}
+
+inline void timespec_subto(struct timespec * a, const struct timespec * b)
+{
+  a->tv_sec -= b->tv_sec;
+  a->tv_nsec -= b->tv_nsec;
+  timespec_fix(a);
+}
 
 #endif
