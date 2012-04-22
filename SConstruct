@@ -26,6 +26,7 @@ SOURCE=Split(
 env.Append(CCFLAGS = ' -Wall -g')
 env.Append(LIBS = [File('libev.a'), 'pthread', 'rt'])
 
+#env.SharedLibrary('ev', SOURCE, LINKFLAGS='-Wl,--no-undefined')
 env.StaticLibrary('ev', SOURCE)
 
 env.Program('log_test',                 'src/log_test.cc')
