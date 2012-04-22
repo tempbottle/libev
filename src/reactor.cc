@@ -140,6 +140,9 @@ namespace libev {
 
   void ReactorImpl::ScheduleTimer()
   {
+    if (min_time_heap_.empty())
+      return;
+
     const Event * ev = min_time_heap_.top();
 
     itimerspec timerspec;
@@ -268,7 +271,7 @@ namespace libev {
     }
     else if (ev->event & kEvTimer)
     {
-      min_time_heap_.erase(ev);
+      // nothing to do
     }
     else if (ev->event & kEvIO)
     {
@@ -643,11 +646,10 @@ namespace libev {
 
   int ReactorImpl::Init()
   {
-    UnInit();
-
     // initialize members that may throw first
     fd_2_io_ev_.resize(32);// magic // may throw
     ep_ev_.resize(32);// magic // may throw
+
 
     sigemptyset(&sigset_);
     sigfd_ = signalfd(-1, &sigset_, SFD_CLOEXEC|SFD_NONBLOCK);
@@ -661,7 +663,8 @@ namespace libev {
       sig_ev_refcount_[i] = 0;
     }
 
-    timerfd_ = timerfd_create(CLOCK_MONOTONIC, 0);
+
+    timerfd_ = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC|TFD_NONBLOCK);
     if (timerfd_ == -1)
     {
       safe_close(sigfd_);
@@ -669,6 +672,7 @@ namespace libev {
       EV_LOG(kError, "timerfd_create: %s", strerror(errno));
       return kEvFailure;
     }
+
 
     epfd_ = epoll_create(20000);// magic
     if (epfd_ == -1)
@@ -687,6 +691,7 @@ namespace libev {
       // ignore the failure of fcntl
     }
 
+
     if (interrupter_.Init() != kEvOK)
     {
       safe_close(epfd_);
@@ -699,38 +704,30 @@ namespace libev {
     }
     interrupter_.Reset();
 
-    epoll_event signal_event;
-    signal_event.data.u64 = 0;// suppress valgrind warnings
-    signal_event.data.fd = sigfd_;
-    signal_event.events = EPOLLIN|EPOLLET;
-    if (epoll_ctl(epfd_, EPOLL_CTL_ADD, sigfd_, &signal_event) == -1)
-    {
-      interrupter_.UnInit();
-      safe_close(epfd_);
-      epfd_ = -1;
-      safe_close(timerfd_);
-      timerfd_ = -1;
-      safe_close(sigfd_);
-      sigfd_ = -1;
-      EV_LOG(kError, "epoll_ctl: %s", strerror(errno));
-      return kEvFailure;
-    }
 
-    epoll_event inter_event;
-    inter_event.data.u64 = 0;// suppress valgrind warnings
-    inter_event.data.fd = interrupter_.fd();
-    inter_event.events = EPOLLIN|EPOLLET;
-    if (epoll_ctl(epfd_, EPOLL_CTL_ADD, interrupter_.fd(), &inter_event) == -1)
+    epoll_event epev[3];
+    epev[0].data.u64 = 0;// suppress valgrind warnings
+    epev[0].data.fd = sigfd_;
+    epev[1].data.u64 = 0;
+    epev[1].data.fd = timerfd_;
+    epev[2].data.u64 = 0;
+    epev[2].data.fd = interrupter_.fd();
+
+    for (int i=0; i<3; i++)
     {
-      interrupter_.UnInit();
-      safe_close(epfd_);
-      epfd_ = -1;
-      safe_close(timerfd_);
-      timerfd_ = -1;
-      safe_close(sigfd_);
-      sigfd_ = -1;
-      EV_LOG(kError, "epoll_ctl: %s", strerror(errno));
-      return kEvFailure;
+      epev[i].events = EPOLLIN|EPOLLET;
+      if (epoll_ctl(epfd_, EPOLL_CTL_ADD, epev[i].data.fd, &epev[i]) == -1)
+      {
+        interrupter_.UnInit();
+        safe_close(epfd_);
+        epfd_ = -1;
+        safe_close(timerfd_);
+        timerfd_ = -1;
+        safe_close(sigfd_);
+        sigfd_ = -1;
+        EV_LOG(kError, "epoll_ctl: %s", strerror(errno));
+        return kEvFailure;
+      }
     }
 
     return kEvOK;

@@ -33,4 +33,5 @@ env.Program('interrupter_test',         'src/interrupter_test.cc')
 env.Program('io_test',                  'src/io_test.cc')
 env.Program('http_get_test',            'src/http_get_test.cc')
 env.Program('signal_test',              'src/signal_test.cc')
+env.Program('timer_test',               'src/timer_test.cc')
 

@@ -113,6 +113,9 @@ einval:
     }
     else if (ev->event & kEvSignal)
     {
+      if (ev->event & kEvET)
+        EV_LOG(kWarning, "kEvET on a Signal Event(%p) is ignored", ev);
+
       if (ev->fd < 0 || ev->fd >= _NSIG)
       {
         EV_LOG(kError, "Signal Event(%p) has an invalid signal number", ev, ev->fd);
@@ -121,6 +124,8 @@ einval:
     }
     else if (ev->event & kEvTimer)
     {
+      if (ev->event & kEvET)
+        EV_LOG(kWarning, "kEvET on a Timer Event(%p) is ignored", ev);
       if (ev->event & kEvPersist)
         EV_LOG(kWarning, "kEvPersist on a Timer Event(%p) is ignored", ev);
 

@@ -1,6 +1,6 @@
 /** @file
 * @brief include required system headers,
-*        declare and implement eventfd, signalfd, timerfd API if needed
+*        declare and implement signalfd, timerfd, eventfd API if needed
 * @author zhangyafeikimi@gmail.com
 * @date
 * @version
@@ -57,11 +57,11 @@ inline int safe_close(int fd)
 }
 
 /************************************************************************/
-/*including or declarations of eventfd, signalfd, timerfd API*/
+/*including or declarations of signalfd, timerfd, eventfd API*/
 /************************************************************************/
-#if defined HAVE_SYS_SIGNALFD
+#if defined HAVE_SYS_SIGNALFD_H
 # include <sys/signalfd.h>
-#else/*HAVE_SYS_SIGNALFD*/
+#else/*HAVE_SYS_SIGNALFD_H*/
 struct signalfd_siginfo
 {
   uint32_t ssi_signo;
@@ -98,19 +98,25 @@ inline int signalfd(int fd, const sigset_t *mask, int flags)
   if (fd == -1)
     return -1;
 
-  if (flags & SFD_NONBLOCK)
-    fcntl(fd, F_SETFL, O_NONBLOCK);
-  if (flags & SFD_CLOEXEC)
-    fcntl(fd, F_SETFD, FD_CLOEXEC);
+  if ((flags & SFD_NONBLOCK) && fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
+  {
+    safe_close(fd);
+    return -1;
+  }
+  if ((flags & SFD_CLOEXEC) && fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+  {
+    safe_close(fd);
+    return -1;
+  }
   return fd;
 # endif
 }
-#endif/*HAVE_SYS_SIGNALFD*/
+#endif/*HAVE_SYS_SIGNALFD_H*/
 
 
-#if defined HAVE_SYS_TIMERFD
+#if defined HAVE_SYS_TIMERFD_H
 # include <sys/timerfd.h>
-#else/*HAVE_SYS_TIMERFD*/
+#else/*HAVE_SYS_TIMERFD_H*/
 enum
 {
   TFD_CLOEXEC = 02000000,
@@ -120,7 +126,21 @@ enum
 
 inline int timerfd_create(int clockid, int flags)
 {
-  return syscall(SYS_timerfd_create, clockid, flags);
+  int fd = syscall(SYS_timerfd_create, clockid, 0);
+  if (fd == -1)
+    return -1;
+
+  if ((flags & SFD_NONBLOCK) && fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
+  {
+    safe_close(fd);
+    return -1;
+  }
+  if ((flags & SFD_CLOEXEC) && fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+  {
+    safe_close(fd);
+    return -1;
+  }
+  return fd;
 }
 
 inline int timerfd_settime(int fd, int flags,
@@ -136,9 +156,9 @@ inline int timerfd_gettime(int fd, struct itimerspec *curr_value)
 #endif
 
 
-#if defined HAVE_SYS_EVENTFD
+#if defined HAVE_SYS_EVENTFD_H
 # include <sys/eventfd.h>
-#else/*HAVE_SYS_EVENTFD*/
+#else/*HAVE_SYS_EVENTFD_H*/
 enum
 {
   EFD_CLOEXEC = 02000000,
@@ -168,7 +188,7 @@ inline int eventfd(unsigned int initval, int flags)
   return fd;
 # endif
 }
-#endif/*HAVE_SYS_EVENTFD*/
+#endif/*HAVE_SYS_EVENTFD_H*/
 
 /************************************************************************/
 /*timespec functions*/
