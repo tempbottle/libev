@@ -25,8 +25,7 @@ namespace libev {
     : event(kEvTimer), callback(_callback), user_data(_udata),
     real_event(0), triggered_times(0), flags(0), reactor(0)
   {
-    timeout.tv_sec = _timeout->tv_sec;
-    timeout.tv_nsec = _timeout->tv_nsec;
+    timeout = *_timeout;
   }
 
   void Event::AddToList(List * list)
@@ -85,7 +84,7 @@ namespace libev {
     }
     else if (count < 1)
     {
-      EV_LOG(kError, "No valid event flags is set");
+      EV_LOG(kError, "No valid kind of event flag is set");
       goto einval;
     }
 
@@ -97,11 +96,13 @@ einval:
 
   int CheckEvent(const Event * ev)
   {
+    int ret;
+
     if (ev == 0)
       goto einval;
 
-    if (CheckInputEventFlag(ev->event) != kEvOK)
-      goto einval;
+    if ((ret = CheckInputEventFlag(ev->event)) != kEvOK)
+      return ret;
 
     if (ev->event & kEvIO)
     {

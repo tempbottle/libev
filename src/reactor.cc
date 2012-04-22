@@ -152,7 +152,7 @@ namespace libev {
 
     EV_LOG(kDebug, "timerfd_settime: seconds=%ld nanoseconds=%ld",
       static_cast<long>(timerspec.it_value.tv_sec), timerspec.it_value.tv_nsec);
-    EV_VERIFY(timerfd_settime(timerfd_, TFD_TIMER_ABSTIME, &timerspec, NULL) != -1);
+    EV_VERIFY(timerfd_settime(timerfd_, TFD_TIMER_ABSTIME, &timerspec, 0) != -1);
   }
 
   void ReactorImpl::ResizeIOEvent(int fd)
