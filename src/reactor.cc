@@ -646,6 +646,12 @@ namespace libev {
 
   int ReactorImpl::Init()
   {
+    if (sigfd_ != -1)
+    {
+      errno = EINVAL;
+      return kEvFailure;
+    }
+
     // initialize members that may throw first
     fd_2_io_ev_.resize(32);// magic // may throw
     ep_ev_.resize(32);// magic // may throw

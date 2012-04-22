@@ -25,11 +25,9 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stddef.h>
-#include <limits.h>
 #include <errno.h>
 #include <time.h>
 #include <sys/time.h>
-#include <syslog.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/types.h>

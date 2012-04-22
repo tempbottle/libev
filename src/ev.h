@@ -106,6 +106,7 @@ namespace libev {
 
   // check Event.event
   int CheckInputEventFlag(int flags);
+  // check Event
   int CheckEvent(const Event * ev);
 
 

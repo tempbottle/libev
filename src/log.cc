@@ -8,6 +8,7 @@
 #include "log.h"
 #include "scoped_ptr.h"
 #include "header.h"
+#include <syslog.h>
 
 namespace libev {
 

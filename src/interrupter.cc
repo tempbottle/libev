@@ -21,7 +21,11 @@ namespace libev {
 
   int Interrupter::Init()
   {
-    UnInit();
+    if (fd_ != -1)
+    {
+      errno = EINVAL;
+      return kEvFailure;
+    }
 
     fd_ = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
     if (fd_ == -1)
