@@ -4,6 +4,3 @@ Author:
 zhangyafeikimi
 
 This is my experimental project for an event library.
-
-TODO:
-There are some code that are not exception-safe(grep "throw" in source code).

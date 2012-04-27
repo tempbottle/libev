@@ -107,7 +107,7 @@ namespace libev {
 
   Log::Log(int level, int flags, const char * logfile, const char * syslog_ident)
   {
-    impl_ = new Impl(level, flags, logfile, syslog_ident);// may throw
+    impl_ = new Impl(level, flags, logfile, syslog_ident);// may throw(caught)
   }
 
   Log::~Log()
@@ -218,7 +218,7 @@ format_error:
   void InitGlobalLog(int level, int flags,
     const char * logfile, const char * syslog_ident)
   {
-    s_log.reset(new Log(level, flags, logfile, syslog_ident));// may throw
+    s_log.reset(new Log(level, flags, logfile, syslog_ident));// may throw(caught)
   }
 
   void UnInitGlobalLog()
@@ -229,7 +229,16 @@ format_error:
   Log& GlobalLog()
   {
     if (!s_log)
-      InitGlobalLog();
+    {
+      try
+      {
+        InitGlobalLog();
+      }
+      catch (...)
+      {
+        // core dump when returning
+      }
+    }
 
     return *s_log;
   }

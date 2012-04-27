@@ -21,6 +21,7 @@ namespace libev {
     kEvFailure = -1,          // common or system failures(refer to errno)
     kEvExists = -2,           // something that should not exist exists
     kEvNotExists = -3,        // something that should exist does not exist
+    kEvNoMemory = -4,         // not enough memory
   };
 
   enum EventFlag

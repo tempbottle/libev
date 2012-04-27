@@ -167,7 +167,7 @@ namespace libev {
 
     while (new_size <= sfd)
       new_size <<= 1;//double the size of 'fd_2_io_ev_'
-    fd_2_io_ev_.resize(new_size);// may throw
+    fd_2_io_ev_.resize(new_size);// may throw(caught)
   }
 
   void ReactorImpl::AddToList(Event * ev)
@@ -195,7 +195,15 @@ namespace libev {
     else if (ev->event & kEvTimer)
     {
       ev->fd = -1;
-      min_time_heap_.push(ev);
+
+      try
+      {
+        min_time_heap_.push(ev);
+      }
+      catch (...)
+      {
+        return kEvNoMemory;
+      }
 
       if (ev->fd == 0)
         ScheduleTimer();
@@ -203,7 +211,14 @@ namespace libev {
     else if (ev->event & kEvIO)
     {
       int fd = ev->fd;
-      ResizeIOEvent(fd);
+      try
+      {
+        ResizeIOEvent(fd);
+      }
+      catch (...)
+      {
+        return kEvNoMemory;
+      }
       IOEvent * io_event = &fd_2_io_ev_[fd];
 
       if ((ev->event & kEvIn) && io_event->event_in)
@@ -628,7 +643,13 @@ namespace libev {
       if (result == epevents_size && epevents_size < 4096)// magic
       {
         epevents_size <<= 1;
-        ep_ev_.resize(epevents_size);// may throw
+        try
+        {
+          ep_ev_.resize(epevents_size);// may throw(caught)
+        }
+        catch (...)
+        {
+        }
       }
     }// for
   }
@@ -652,9 +673,15 @@ namespace libev {
       return kEvFailure;
     }
 
-    // initialize members that may throw first
-    fd_2_io_ev_.resize(32);// magic // may throw
-    ep_ev_.resize(32);// magic // may throw
+    try
+    {
+      fd_2_io_ev_.resize(32);// magic // may throw(caught)
+      ep_ev_.resize(32);// magic // may throw(caught)
+    }
+    catch (...)
+    {
+      return kEvNoMemory;
+    }
 
 
     sigemptyset(&sigset_);
@@ -878,7 +905,7 @@ namespace libev {
 
 
   /************************************************************************/
-  Reactor::Reactor() {impl_ = new ReactorImpl;}// may throw
+  Reactor::Reactor() {impl_ = new ReactorImpl;}// may throw(uncaught)
   Reactor::~Reactor() {delete impl_;}
   int Reactor::Init() {return impl_->Init();}
   void Reactor::UnInit() {impl_->UnInit();}

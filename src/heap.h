@@ -91,7 +91,7 @@ namespace libev {
       EV_ASSERT(timespec_isset(&node->timeout));
       EV_ASSERT(node->fd == -1);
 
-      heap_.push_back(node);// may throw
+      heap_.push_back(node);// may throw(caught)
       shift_up(heap_.size()-1, node);
     }
 
