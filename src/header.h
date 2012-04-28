@@ -128,12 +128,12 @@ inline int timerfd_create(int clockid, int flags)
   if (fd == -1)
     return -1;
 
-  if ((flags & SFD_NONBLOCK) && fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
+  if ((flags & TFD_NONBLOCK) && fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
   {
     safe_close(fd);
     return -1;
   }
-  if ((flags & SFD_CLOEXEC) && fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
+  if ((flags & TFD_CLOEXEC) && fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
   {
     safe_close(fd);
     return -1;
