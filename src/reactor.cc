@@ -14,6 +14,10 @@
 
 namespace libev {
 
+  static const int kEpollSize = 20480;
+  static const int kEpollEventsSize = 32;
+  static const int kEpollEventsMaxSize = 10240;
+
   class ReactorImpl
   {
   private:
@@ -640,7 +644,7 @@ namespace libev {
       }
 
       // 5.check and resize 'ep_ev_' to make epoll_wait get more results
-      if (result == epevents_size && epevents_size < 4096)// magic
+      if (result == epevents_size && epevents_size < kEpollEventsMaxSize)
       {
         epevents_size <<= 1;
         try
@@ -675,8 +679,8 @@ namespace libev {
 
     try
     {
-      fd_2_io_ev_.resize(32);// magic // may throw(caught)
-      ep_ev_.resize(32);// magic // may throw(caught)
+      fd_2_io_ev_.resize(kEpollEventsSize);// may throw(caught)
+      ep_ev_.resize(kEpollEventsSize);// may throw(caught)
     }
     catch (...)
     {
@@ -707,7 +711,7 @@ namespace libev {
     }
 
 
-    epfd_ = epoll_create(20000);// magic
+    epfd_ = epoll_create(kEpollSize);
     if (epfd_ == -1)
     {
       safe_close(timerfd_);
