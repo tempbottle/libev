@@ -119,7 +119,7 @@ namespace libev {
   {
     static int pid = 0;
     if (pid == 0)
-      pid = static_cast<int>(getpid());
+      pid = (int)getpid();
 
     if (impl_->GetLevel() < level)
       return 0;
@@ -139,14 +139,14 @@ namespace libev {
     for (;;)
     {
       //like '2011-04-18 16:21:30'
-      n = strftime(p, bytes_left, "%Y-%m-%d %H:%M:%S", &tm_s);
+      n = (int)strftime(p, (size_t)bytes_left, "%Y-%m-%d %H:%M:%S", &tm_s);
 
       bytes_left -= n;
       p += n;
       if (bytes_left <= 0) goto extend_buf;
 
-      n = snprintf(p, bytes_left, ".%06ld [%d/%d] [%s]: ",
-          tv.tv_usec, pid, static_cast<int>(syscall(SYS_gettid)), s_log_level_string[level]);
+      n = snprintf(p, (size_t)bytes_left, ".%06ld [%d/%d] [%s]: ",
+          tv.tv_usec, pid, (int)syscall(SYS_gettid), s_log_level_string[level]);
 
       if (n < 0) goto format_error;
       bytes_left -= n;
@@ -156,7 +156,7 @@ namespace libev {
       //var args
       va_list arglist;
       va_start(arglist, format);
-      n = vsnprintf(p, bytes_left, format, arglist);
+      n = vsnprintf(p, (size_t)bytes_left, format, arglist);
       va_end(arglist);
 
       if (n < 0) goto format_error;
@@ -173,7 +173,7 @@ extend_buf:
 
       if (large_buf)
         free(large_buf);
-      large_buf = static_cast<char *>(malloc(buf_size));
+      large_buf = (char *)(malloc((size_t)buf_size));
       if (large_buf == 0)
         goto format_error;
 

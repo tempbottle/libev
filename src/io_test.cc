@@ -39,14 +39,15 @@ static int connect_host(int sockfd, const char * hostname, unsigned short port)
   s4.sin_family = AF_INET;
   s4.sin_port = htons(port);
   memcpy(&s4.sin_addr, host->h_addr_list[0], 4);
+  //lint -e740
   return connect(sockfd, (const struct sockaddr *)&s4, sizeof(s4));
 }
 
-static void Test0_Callback(int fd, int event, void * user_data)
+static void Test0_Callback(int /*fd*/, int event, void * user_data)
 {
   EV_LOG(kInfo, "Test0_Callback");
 
-  Event * ev = static_cast<Event *>(user_data);
+  Event * ev = (Event *)user_data;
 
   if (event & (kEvErr|kEvCanceled))
   {
@@ -110,7 +111,7 @@ static void Test0()
   EV_VERIFY(reactor->Add(ev[0]) == kEvOK);
   EV_VERIFY(reactor->Add(ev[1]) == kEvOK);
 
-  reactor->Run();
+  (void)reactor->Run();
   reactor.reset();
 
   EV_LOG(kInfo, "\n\n");

@@ -23,7 +23,7 @@ SOURCE=Split(
     'src/reactor.cc '
 )
 
-env.Append(CCFLAGS = ' -Wall -g')
+env.Append(CCFLAGS = ' -Wall -g -std=c++98')
 env.Append(LIBS = [File('libev.a'), 'pthread', 'rt'])
 
 #env.SharedLibrary('ev', SOURCE, LINKFLAGS='-Wl,--no-undefined')

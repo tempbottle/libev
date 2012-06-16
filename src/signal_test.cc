@@ -22,7 +22,7 @@ static void Test0_Callback(int signum, int event, void * user_data)
   if (event & kEvCanceled)
   {
     counter++;
-    Event * ev = static_cast<Event *>(user_data);
+    Event * ev = (Event *)user_data;
     delete ev;
   }
 }
@@ -78,12 +78,12 @@ static void Test0()
 }
 
 
-static void Test1_Callback(int signum, int event, void * user_data)
+static void Test1_Callback(int signum, int /*event*/, void * user_data)
 {
   EV_LOG(kInfo, "Test1_Callback %d", signum);
 
   counter++;
-  Event * ev = static_cast<Event *>(user_data);
+  Event * ev = (Event *)user_data;
   delete ev;
 }
 
@@ -115,7 +115,7 @@ static void Test1()
   kill(getpid(), SIGINT);
   kill(getpid(), SIGQUIT);
 
-  reactor->Run();
+  (void)reactor->Run();
   reactor.reset();
 
   EV_VERIFY(counter == 2);
@@ -138,8 +138,8 @@ static void Test2_Callback(int signum, int event, void * user_data)
   {
     counter++;
 
-    Test2_Helper * helper = static_cast<Test2_Helper *>(user_data);
-    helper->ev_other->Del();
+    Test2_Helper * helper = (Test2_Helper *)user_data;
+    EV_VERIFY(helper->ev_other->Del() == kEvOK);
     delete helper->ev;
     delete helper->ev_other;
   }
@@ -147,15 +147,15 @@ static void Test2_Callback(int signum, int event, void * user_data)
   {
     counter++;
 
-    Test2_Helper * helper = static_cast<Test2_Helper *>(user_data);
-    helper->ev_other->Cancel();
+    Test2_Helper * helper = (Test2_Helper *)user_data;
+    EV_VERIFY(helper->ev_other->Cancel() == kEvOK);
     delete helper->ev;
   }
   else if (signum == SIGUSR2 && (event & kEvCanceled))
   {
     counter++;
 
-    Event * ev = static_cast<Event *>(user_data);
+    Event * ev = (Event *)user_data;
     delete ev;
   }
 }
@@ -211,7 +211,7 @@ static void Test2()
   kill(getpid(), SIGINT);
   kill(getpid(), SIGQUIT);
 
-  reactor->Run();
+  (void)reactor->Run();
   reactor.reset();
 
   EV_VERIFY(counter == 3);
@@ -220,21 +220,21 @@ static void Test2()
 }
 
 
-static void Test3_Callback(int signum, int event, void * user_data)
+static void Test3_Callback(int signum, int /*event*/, void * user_data)
 {
   EV_LOG(kInfo, "Test3_Callback %d", signum);
 
   counter++;
 
-  Event * ev = static_cast<Event *>(user_data);
+  Event * ev = (Event *)user_data;
   if (signum == SIGINT || signum == SIGQUIT)
   {
-    ev->Cancel();
+    (void)ev->Cancel();
     delete ev;
   }
   else
   {
-    ev->Del();
+    (void)ev->Del();
     delete ev;
   }
 }
@@ -284,7 +284,7 @@ static void Test3()
   kill(getpid(), SIGUSR1);
   kill(getpid(), SIGUSR2);
 
-  reactor->Run();
+  (void)reactor->Run();
   reactor.reset();
 
   EV_VERIFY(counter == 4);
@@ -293,13 +293,13 @@ static void Test3()
 }
 
 
-static void Test4_Callback(int signum, int event, void * user_data)
+static void Test4_Callback(int signum, int /*event*/, void * user_data)
 {
   EV_LOG(kInfo, "Test4_Callback %d", signum);
 
   counter++;
 
-  Event * ev = static_cast<Event *>(user_data);
+  Event * ev = (Event *)user_data;
   delete ev;
 }
 
@@ -330,7 +330,7 @@ static void Test4()
 
   kill(getpid(), SIGINT);
 
-  reactor->Run();
+  (void)reactor->Run();
   reactor.reset();
 
   EV_VERIFY(counter == 2);
@@ -339,19 +339,19 @@ static void Test4()
 }
 
 
-static void Test5_Callback(int signum, int event, void * user_data)
+static void Test5_Callback(int signum, int /*event*/, void * user_data)
 {
   EV_LOG(kInfo, "Test5_Callback %d", signum);
 
   counter++;
 
-  Event * ev = static_cast<Event *>(user_data);
+  Event * ev = (Event *)user_data;
 
   static std::map<Event *, int> time_map;
 
   if (++time_map[ev] == 3)
   {
-    ev->Del();
+    EV_VERIFY(ev->Del() == kEvOK);
     delete ev;
   }
   else
@@ -387,7 +387,7 @@ static void Test5()
 
   kill(getpid(), SIGINT);
 
-  reactor->Run();
+  (void)reactor->Run();
   reactor.reset();
 
   EV_VERIFY(counter == 6);

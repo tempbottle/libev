@@ -155,7 +155,7 @@ namespace libev {
     timerspec.it_interval.tv_nsec = 0;
 
     EV_LOG(kDebug, "timerfd_settime: seconds=%ld nanoseconds=%ld",
-        static_cast<long>(timerspec.it_value.tv_sec), timerspec.it_value.tv_nsec);
+        (long)timerspec.it_value.tv_sec, (long)timerspec.it_value.tv_nsec);
     EV_VERIFY(timerfd_settime(timerfd_, TFD_TIMER_ABSTIME, &timerspec, 0) != -1);
   }
 
@@ -163,7 +163,7 @@ namespace libev {
   {
     EV_ASSERT(fd >= 0);
 
-    size_t sfd = static_cast<size_t>(fd);
+    size_t sfd = (size_t)fd;
     size_t new_size = fd_2_io_ev_.size();
     EV_ASSERT(new_size != 0);
     if (sfd < new_size)
@@ -223,7 +223,7 @@ namespace libev {
       {
         return kEvNoMemory;
       }
-      IOEvent * io_event = &fd_2_io_ev_[fd];
+      IOEvent * io_event = &fd_2_io_ev_[(size_t)fd];
 
       if ((ev->event & kEvIn) && io_event->event_in)
       {
@@ -259,7 +259,7 @@ namespace libev {
       epoll_event epev;
       epev.data.u64 = 0;// suppress valgrind warnings
       epev.data.fd = fd;
-      epev.events = events;
+      epev.events = (uint32_t)events;
       EV_LOG(kDebug, "epoll_ctl: op=%d fd=%d", op, fd);
       if (epoll_ctl(epfd_, op, fd, &epev) == -1)
       {
@@ -294,7 +294,7 @@ namespace libev {
     }
     else if (ev->event & kEvIO)
     {
-      IOEvent * io_event = &fd_2_io_ev_[fd];
+      IOEvent * io_event = &fd_2_io_ev_[(size_t)fd];
       int op = EPOLL_CTL_DEL;
       int events = 0;
       int del_in = 1, del_out = 1;
@@ -323,7 +323,7 @@ namespace libev {
 
       epoll_event epev;
       epev.data.u64 = 0;// suppress valgrind warnings
-      epev.events = events;
+      epev.events = (uint32_t)events;
       epev.data.fd = fd;
       EV_LOG(kDebug, "epoll_ctl: op=%d fd=%d", op, fd);
       EV_VERIFY(epoll_ctl(epfd_, op, fd, &epev) != -1);
@@ -377,12 +377,14 @@ namespace libev {
 
     for (node = ev_list_.front(); node != ev_list_.end() ; node = node->next)
     {
+      //lint -e826
       ev = ev_container_of(node, Event, _all);
       CancelOutsideCB(ev);
     }
 
     for (node = sig_ev_list_.front(); node != sig_ev_list_.end() ; node = node->next)
     {
+      //lint -e826
       ev = ev_container_of(node, Event, _all);
       CancelOutsideCB(ev);
     }
@@ -419,6 +421,8 @@ namespace libev {
 
     ev->flags |= kInCallback;
     ev->callback(ev->fd, ev->real_event, ev->user_data);
+    //lint -e774
+    //lint -e845
     if (!put_back || ev_canceled_)
       return;
     ev->flags &= ~kInCallback;
@@ -438,7 +442,7 @@ namespace libev {
 
   void ReactorImpl::OnSignalReadable()
   {
-    signalfd_siginfo siginfo;
+    signalfd_siginfo _siginfo;
     int result;
     int signum;
     ListNode * node;
@@ -446,15 +450,15 @@ namespace libev {
 
     for (;;)
     {
-      do result = read(sigfd_, &siginfo, sizeof(siginfo));
+      do result = read(sigfd_, &_siginfo, sizeof(_siginfo));
       while (result == -1 && errno == EINTR);
 
       if (result == -1 && errno == EAGAIN)
         return;
 
-      EV_ASSERT(result == sizeof(siginfo));
+      EV_ASSERT(result == (int)sizeof(_siginfo));
 
-      signum = siginfo.ssi_signo;
+      signum = (int)_siginfo.ssi_signo;
 
       // traverse 'sig_ev_list_' to match all events targeting 'signum'
       for (node = sig_ev_list_.front(); node != sig_ev_list_.end() ; node = node->next)
@@ -526,7 +530,7 @@ namespace libev {
 
     int number = 0;
     int i, result;
-    int epevents_size = static_cast<int>(ep_ev_.size());
+    int epevents_size = (int)ep_ev_.size();
     ListNode * node;
     Event * ev;
     int timeout = (blocking)?(-1):(0);
@@ -567,8 +571,8 @@ namespace libev {
 
       for (i=0; i<result; i++)
       {
-        int fd = ep_ev_[i].data.fd;
-        int events = ep_ev_[i].events;
+        int fd = ep_ev_[(size_t)i].data.fd;
+        int events = (int)ep_ev_[(size_t)i].events;
 
         if (fd == interrupter_.fd())
         {
@@ -596,7 +600,7 @@ namespace libev {
           Event * event_out = 0;
           int real_event = 0;
 
-          io_event = &fd_2_io_ev_[fd];
+          io_event = &fd_2_io_ev_[(size_t)fd];
 
           if (events & (EPOLLERR|EPOLLHUP))
           {
@@ -646,10 +650,10 @@ namespace libev {
       // 5.check and resize 'ep_ev_' to make epoll_wait get more results
       if (result == epevents_size && epevents_size < kEpollEventsMaxSize)
       {
-        epevents_size <<= 1;
+        epevents_size *= 2;
         try
         {
-          ep_ev_.resize(epevents_size);// may throw(caught)
+          ep_ev_.resize((size_t)epevents_size);// may throw(caught)
         }
         catch (...)
         {
@@ -773,7 +777,7 @@ namespace libev {
   void ReactorImpl::UnInit()
   {
     CancelAll();
-    Poll(0);
+    (void)Poll(0);
 
     interrupter_.UnInit();
 

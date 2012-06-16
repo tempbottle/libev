@@ -29,14 +29,14 @@ struct Connection
   Event ev_out;
 
   std::string send_buf;
-  int send_cursor;
+  size_t send_cursor;
   std::string recv_buf;
-  int recv_cursor;
+  size_t recv_cursor;
 };
 
-static void OutCallback(int fd, int event, void * user_data)
+static void OutCallback(int /*fd*/, int event, void * user_data)
 {
-  Connection * conn = static_cast<Connection *>(user_data);
+  Connection * conn = (Connection *)user_data;
   int res;
 
   if (event & kEvErr)
@@ -70,7 +70,7 @@ static void OutCallback(int fd, int event, void * user_data)
 
     for (;;)
     {
-      if (conn->send_buf.size() == static_cast<size_t>(conn->send_cursor))
+      if (conn->send_buf.size() == (size_t)conn->send_cursor)
       {
         EV_LOG(kInfo, "send GET OK");
 
@@ -105,7 +105,7 @@ resend:
         }
         else
         {
-          conn->send_cursor += res;
+          conn->send_cursor += (size_t)res;
           EV_LOG(kInfo, "send %d bytes", conn->send_cursor);
         }
       }
@@ -118,9 +118,9 @@ err:
   delete conn;
 }
 
-static void InCallback(int fd, int event, void * user_data)
+static void InCallback(int /*fd*/, int event, void * user_data)
 {
-  Connection * conn = static_cast<Connection *>(user_data);
+  Connection * conn = (Connection *)user_data;
   int res;
 
   if (event & kEvErr)
@@ -135,7 +135,7 @@ static void InCallback(int fd, int event, void * user_data)
   {
     for (;;)
     {
-      if (conn->recv_buf.size() == static_cast<size_t>(conn->recv_cursor))
+      if (conn->recv_buf.size() == (size_t)conn->recv_cursor)
         conn->recv_buf.resize(conn->recv_buf.size() * 2);
 
       res = recv(conn->fd,
@@ -160,7 +160,7 @@ static void InCallback(int fd, int event, void * user_data)
       }
       else
       {
-        conn->recv_cursor += res;
+        conn->recv_cursor += (size_t)res;
         EV_LOG(kInfo, "recv %d bytes", conn->recv_cursor);
 
         if (conn->recv_cursor >= 4
@@ -179,7 +179,7 @@ err:
   delete conn;
 }
 
-void HttpGet(const char * url)
+static void HttpGet(const char * url)
 {
   EV_LOG(kInfo, "HTTP get %s", url);
 
@@ -201,6 +201,7 @@ void HttpGet(const char * url)
   s4.sin_family = AF_INET;
   s4.sin_port = htons(80);
   memcpy(&s4.sin_addr, host->h_addr_list[0], 4);
+  //lint -e740
   res = connect(sockfd, (const struct sockaddr *)&s4, sizeof(s4));
   EV_VERIFY(res == -1 && errno == EINPROGRESS);
 
@@ -221,7 +222,7 @@ void HttpGet(const char * url)
   EV_VERIFY(reactor->Init() == kEvOK);
   EV_VERIFY(reactor->Add(&conn->ev_out) == kEvOK);
 
-  reactor->Run();
+  (void)reactor->Run();
   reactor.reset();
 
   EV_LOG(kInfo, "\n\n");

@@ -43,17 +43,17 @@ namespace libev {
           self_type(p).swap(*this);
         }
 
-        reference operator*() const
+        reference operator*()
         {
           return *px_;
         }
 
-        pointer operator->() const
+        pointer operator->()
         {
           return px_;
         }
 
-        pointer get() const
+        pointer get()
         {
           return px_;
         }
@@ -70,6 +70,7 @@ namespace libev {
           b.px_ = tmp;
         }
 
+        //lint -e1727
         friend inline void swap(self_type& a, self_type& b)
         {
           T * tmp = a.px_;

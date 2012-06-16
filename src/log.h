@@ -8,6 +8,7 @@
 #ifndef LIBEV_LOG_H
 #define LIBEV_LOG_H
 
+#include "ev-internal.h"
 #include <stdlib.h>
 
 namespace libev {
@@ -35,6 +36,8 @@ namespace libev {
 
   class Log
   {
+    private:
+      DISALLOW_COPY_AND_ASSIGN(Log);
     private:
       class Impl;
       Impl * impl_;

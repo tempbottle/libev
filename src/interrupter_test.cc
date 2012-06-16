@@ -22,7 +22,7 @@ static void * ThreadFunc(void *)
   for (i=0; i<times; i++)
   {
     sleep(1);
-    inter.Interrupt();
+    EV_VERIFY(inter.Interrupt() == kEvOK);
   }
 
   return 0;

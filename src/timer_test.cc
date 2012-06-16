@@ -19,11 +19,11 @@ struct Test0_Helper
   int times;
 };
 
-static void Test0_Callback(int fd, int event, void * user_data)
+static void Test0_Callback(int /*fd*/, int /*event*/, void * user_data)
 {
   EV_LOG(kInfo, "Test0_Callback");
 
-  Test0_Helper * helper = static_cast<Test0_Helper *>(user_data);
+  Test0_Helper * helper = (Test0_Helper *)user_data;
 
 
   if (--helper->times == 0)
@@ -33,7 +33,7 @@ static void Test0_Callback(int fd, int event, void * user_data)
   else
   {
     helper->ev->timeout.tv_sec += 1;
-    helper->reactor->Add(helper->ev);
+    EV_VERIFY(helper->reactor->Add(helper->ev) == kEvOK);
   }
 }
 
@@ -65,7 +65,7 @@ static void Test0()
   EV_VERIFY(reactor->Add(ev[0]) == kEvOK);
   EV_VERIFY(reactor->Add(ev[1]) == kEvOK);
 
-  reactor->Run();
+  (void)reactor->Run();
   reactor.reset();
 
   EV_LOG(kInfo, "\n\n");

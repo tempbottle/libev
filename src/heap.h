@@ -33,11 +33,11 @@ namespace libev {
         size_t parent = (hole_index - 1) >> 1;
         while (hole_index && greater(heap_[parent], node))
         {
-          (heap_[hole_index] = heap_[parent])->fd = hole_index;
+          (heap_[hole_index] = heap_[parent])->fd = (int)hole_index;
           hole_index = parent;
           parent = (hole_index - 1) >> 1;
         }
-        (heap_[hole_index] = node)->fd = hole_index;
+        (heap_[hole_index] = node)->fd = (int)hole_index;
       }
 
       void shift_down(size_t hole_index, Event * node)
@@ -45,11 +45,12 @@ namespace libev {
         size_t min_child = (hole_index + 1) << 1;
         while (min_child <= heap_.size())
         {
+          //lint -e514
           min_child -= (min_child == heap_.size()
               || greater(heap_[min_child], heap_[min_child - 1]));
           if(!(greater(node, heap_[min_child])))
             break;
-          (heap_[hole_index] = heap_[min_child])->fd = hole_index;
+          (heap_[hole_index] = heap_[min_child])->fd = (int)hole_index;
           hole_index = min_child;
           min_child = (hole_index + 1) << 1;
         }
@@ -114,11 +115,11 @@ namespace libev {
 
         Event * last = heap_.back();
         heap_.pop_back();
-        size_t parent = (node->fd - 1) >> 1;
+        size_t parent = ((size_t)node->fd - 1) << 1;
         if (node->fd > 0 && greater(heap_[parent], last))
-          shift_up(node->fd, last);
+          shift_up((size_t)node->fd, last);
         else
-          shift_down(node->fd, last);
+          shift_down((size_t)node->fd, last);
         node->fd = -1;
       }
   };
