@@ -1,10 +1,10 @@
 /** @file
-* @brief log test
-* @author zhangyafeikimi@gmail.com
-* @date
-* @version
-*
-*/
+ * @brief log test
+ * @author zhangyafeikimi@gmail.com
+ * @date
+ * @version
+ *
+ */
 #include "log.h"
 #include "header.h"
 

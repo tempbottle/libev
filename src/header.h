@@ -1,12 +1,12 @@
 /** @file
-* @brief include required system headers,
-*        declare and implement signalfd, timerfd, eventfd API if needed
-* @author zhangyafeikimi@gmail.com
-* @date
-* @version
-*
-*
-*/
+ * @brief include required system headers,
+ *        declare and implement signalfd, timerfd, eventfd API if needed
+ * @author zhangyafeikimi@gmail.com
+ * @date
+ * @version
+ *
+ *
+ */
 #ifndef LIBEV_HEADER_H
 #define LIBEV_HEADER_H
 
@@ -84,7 +84,7 @@ struct signalfd_siginfo
 enum
 {
   SFD_CLOEXEC = 02000000,
-  SFD_NONBLOCK = 04000,
+  SFD_NONBLOCK = 04000
 };
 
 inline int signalfd(int fd, const sigset_t *mask, int flags)
@@ -119,7 +119,7 @@ enum
 {
   TFD_CLOEXEC = 02000000,
   TFD_NONBLOCK = 04000,
-  TFD_TIMER_ABSTIME = 1,
+  TFD_TIMER_ABSTIME = 1
 };
 
 inline int timerfd_create(int clockid, int flags)
@@ -130,19 +130,19 @@ inline int timerfd_create(int clockid, int flags)
 
   if ((flags & TFD_NONBLOCK) && fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
   {
-    safe_close(fd);
+    (void)safe_close(fd);
     return -1;
   }
   if ((flags & TFD_CLOEXEC) && fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
   {
-    safe_close(fd);
+    (void)safe_close(fd);
     return -1;
   }
   return fd;
 }
 
 inline int timerfd_settime(int fd, int flags,
-                           const struct itimerspec *new_value, struct itimerspec *old_value)
+    const struct itimerspec *new_value, struct itimerspec *old_value)
 {
   return syscall(SYS_timerfd_settime, fd, flags, new_value, old_value);
 }
@@ -161,7 +161,7 @@ enum
 {
   EFD_CLOEXEC = 02000000,
   EFD_NONBLOCK = 04000,
-  EFD_SEMAPHORE = 1,
+  EFD_SEMAPHORE = 1
 };
 
 inline int eventfd(unsigned int initval, int flags)
@@ -192,11 +192,11 @@ inline int eventfd(unsigned int initval, int flags)
 /*timespec functions*/
 /************************************************************************/
 #define timespec_isset(tvp) ((tvp)->tv_sec || (tvp)->tv_nsec)
-#define timespec_clear(tvp) (tvp)->tv_sec = (tvp)->tv_nsec = 0
+#define timespec_clear(tvp) ((tvp)->tv_sec = (tvp)->tv_nsec = 0)
 
 #define timespec_cmp(tvp,uvp,cmp) \
   ((tvp)->tv_sec cmp (uvp)->tv_sec || \
-  ((tvp)->tv_sec == (uvp)->tv_sec && (tvp)->tv_nsec cmp (uvp)->tv_nsec))
+   ((tvp)->tv_sec == (uvp)->tv_sec && (tvp)->tv_nsec cmp (uvp)->tv_nsec))
 #define timespec_less(a, b) timespec_cmp(a, b, <)
 #define timespec_greater(a, b) timespec_cmp(a, b, >)
 #define timespec_equal(a, b) timespec_cmp(a, b, ==)

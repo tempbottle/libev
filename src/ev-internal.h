@@ -1,10 +1,10 @@
 /** @file
-* @brief libev internal header
-* @author zhangyafeikimi@gmail.com
-* @date
-* @version
-*
-*/
+ * @brief libev internal header
+ * @author zhangyafeikimi@gmail.com
+ * @date
+ * @version
+ *
+ */
 #ifndef LIBEV_EV_INTERNAL_H
 #define LIBEV_EV_INTERNAL_H
 
@@ -14,6 +14,6 @@
 
 // from google
 #define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&); void operator=(const TypeName&)
+  TypeName(const TypeName&); TypeName& operator=(const TypeName&)
 
 #endif

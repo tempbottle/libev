@@ -1,10 +1,10 @@
 /** @file
-* @brief interrupter
-* @author zhangyafeikimi@gmail.com
-* @date
-* @version
-*
-*/
+ * @brief interrupter
+ * @author zhangyafeikimi@gmail.com
+ * @date
+ * @version
+ *
+ */
 #include "interrupter.h"
 #include "ev.h"
 #include "log.h"

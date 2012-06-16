@@ -1,10 +1,10 @@
 /** @file
-* @brief libev
-* @author zhangyafeikimi@gmail.com
-* @date
-* @version
-*
-*/
+ * @brief libev
+ * @author zhangyafeikimi@gmail.com
+ * @date
+ * @version
+ *
+ */
 #ifndef LIBEV_EV_H
 #define LIBEV_EV_H
 
@@ -21,7 +21,7 @@ namespace libev {
     kEvFailure = -1,          // common or system failures(refer to errno)
     kEvExists = -2,           // something that should not exist exists
     kEvNotExists = -3,        // something that should exist does not exist
-    kEvNoMemory = -4,         // not enough memory
+    kEvNoMemory = -4          // not enough memory
   };
 
   enum EventFlag
@@ -47,13 +47,16 @@ namespace libev {
     // The following event flag must not be set in Event.event,
     // they are to be checked in callback(2nd parameter).
     kEvErr = 0x1000,          // error(EPOLLERR|EPOLLHUP) only for kEvIO
-    kEvCanceled = 0x2000,     // canceled by the user or library cleanup
+    kEvCanceled = 0x2000      // canceled by the user or library cleanup
+  };
 
 
+  enum
+  {
     // The following event flag are private. No attention please.
     kInAllList = 0x01,
     kInActiveList = 0x02,
-    kInCallback = 0x04,
+    kInCallback = 0x04
   };
 
   typedef void (*ev_callback)(int fd, int event, void * user_data);
@@ -63,45 +66,45 @@ namespace libev {
 
   struct Event
   {
-  public:
-    // The following members are required fields,
-    // but they can not be modified after being added to reactor.
-    int fd;                   // fd(kEvIn, kEvOut), signal number(kEvSignal), heap index(kEvTimer)
-    timespec timeout;         // absolute and monotonic timeout(kEvTimer)
-    int event;                // event flags(bit or of EventFlag)
-    ev_callback callback;     // callback
-    void * user_data;         // user data
+    public:
+      // The following members are required fields,
+      // but they can not be modified after being added to reactor.
+      int fd;                   // fd(kEvIn, kEvOut), signal number(kEvSignal), heap index(kEvTimer)
+      timespec timeout;         // absolute and monotonic timeout(kEvTimer)
+      int event;                // event flags(bit or of EventFlag)
+      ev_callback callback;     // callback
+      void * user_data;         // user data
 
-  public:
-    Event();
-    Event(int _fd, int _event, ev_callback _callback, void * _udata);
-    Event(timespec * _timeout, ev_callback _callback, void * _udata);
-    int Del();
-    int Cancel();
+    public:
+      Event();
+      Event(int _fd, int _event, ev_callback _callback, void * _udata);
+      Event(timespec * _timeout, ev_callback _callback, void * _udata);
+      int Del();
+      int Cancel();
 
-  private:
-    DISALLOW_COPY_AND_ASSIGN(Event);
-    friend class ReactorImpl;
+    private:
+      DISALLOW_COPY_AND_ASSIGN(Event);
+      friend class ReactorImpl;
 
-    ListNode _all;// node in all event list
-    ListNode _active;// node in active event list
+      ListNode _all;// node in all event list
+      ListNode _active;// node in active event list
 
-    int real_event;// the real event to be passed to callback
-    int triggered_times;// the times that the signal is triggered but pending(signal events)
-    int flags;// bit or of EventInternalFlag
-    ReactorImpl * reactor;
+      int real_event;// the real event to be passed to callback
+      int triggered_times;// the times that the signal is triggered but pending(signal events)
+      int flags;// bit or of EventInternalFlag
+      ReactorImpl * reactor;
 
-    // return 1, in
-    // return 0, not in
-    int IsInList()const {return flags & kInAllList;}
-    void AddToList(List * list);
-    void DelFromList(List * list);
+      // return 1, in
+      // return 0, not in
+      int IsInList()const {return flags & kInAllList;}
+      void AddToList(List * list);
+      void DelFromList(List * list);
 
-    // return 1, active
-    // return 0, not active
-    int IsActive()const {return flags & kInActiveList;}
-    void AddToActive(List * active_list);
-    void DelFromActive(List * active_list);
+      // return 1, active
+      // return 0, not active
+      int IsActive()const {return flags & kInActiveList;}
+      void AddToActive(List * active_list);
+      void DelFromActive(List * active_list);
   };
 
 
@@ -114,42 +117,42 @@ namespace libev {
   /************************************************************************/
   class Reactor
   {
-  private:
-    DISALLOW_COPY_AND_ASSIGN(Reactor);
-    ReactorImpl * impl_;
+    private:
+      DISALLOW_COPY_AND_ASSIGN(Reactor);
+      ReactorImpl * impl_;
 
-  public:
-    Reactor();
-    ~Reactor();
+    public:
+      Reactor();
+      ~Reactor();
 
-    int Init();
-    void UnInit();
+      int Init();
+      void UnInit();
 
-    int Add(Event * ev);
-    int Del(Event * ev);
-    int Cancel(Event * ev);
+      int Add(Event * ev);
+      int Del(Event * ev);
+      int Cancel(Event * ev);
 
-    // execute at most one ready event
-    // return the number of executed event
-    int PollOne();
-    // execute all ready events
-    // return the number of executed event
-    int Poll();
-    // if 'limit' > 0, execute at most 'limit' ready events
-    // if 'limit' == 0, execute all ready events
-    // return the number of executed event
-    int Poll(int limit);
-    // execute at most one event, or until 'Stop' is called
-    // return the number of executed event
-    int RunOne();
-    // execute all ready events, or until 'Stop' is called
-    // return the number of executed event
-    int Run();
-    // if 'limit' > 0, execute at most 'limit' events, or until interrupted
-    // if 'limit' == 0, execute all events, or until interrupted
-    // return the number of executed event
-    int Run(int limit);
-    int Stop();
+      // execute at most one ready event
+      // return the number of executed event
+      int PollOne();
+      // execute all ready events
+      // return the number of executed event
+      int Poll();
+      // if 'limit' > 0, execute at most 'limit' ready events
+      // if 'limit' == 0, execute all ready events
+      // return the number of executed event
+      int Poll(int limit);
+      // execute at most one event, or until 'Stop' is called
+      // return the number of executed event
+      int RunOne();
+      // execute all ready events, or until 'Stop' is called
+      // return the number of executed event
+      int Run();
+      // if 'limit' > 0, execute at most 'limit' events, or until interrupted
+      // if 'limit' == 0, execute all events, or until interrupted
+      // return the number of executed event
+      int Run(int limit);
+      int Stop();
   };
 }
 

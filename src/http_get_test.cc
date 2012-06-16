@@ -1,10 +1,10 @@
 /** @file
-* @brief http get test
-* @author zhangyafeikimi@gmail.com
-* @date
-* @version
-*
-*/
+ * @brief http get test
+ * @author zhangyafeikimi@gmail.com
+ * @date
+ * @version
+ *
+ */
 #include "ev.h"
 #include "log.h"
 #include "scoped_ptr.h"
@@ -85,9 +85,9 @@ static void OutCallback(int fd, int event, void * user_data)
       {
 resend:
         res = send(conn->fd,
-          &conn->send_buf[conn->send_cursor],
-          conn->send_buf.size() - conn->send_cursor,
-          0);
+            &conn->send_buf[conn->send_cursor],
+            conn->send_buf.size() - conn->send_cursor,
+            0);
 
         if (res == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
         {
@@ -139,9 +139,9 @@ static void InCallback(int fd, int event, void * user_data)
         conn->recv_buf.resize(conn->recv_buf.size() * 2);
 
       res = recv(conn->fd,
-        &conn->recv_buf[conn->recv_cursor],
-        conn->recv_buf.size() - conn->recv_cursor,
-        0);
+          &conn->recv_buf[conn->recv_cursor],
+          conn->recv_buf.size() - conn->recv_cursor,
+          0);
 
       if (res == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
       {
@@ -164,7 +164,7 @@ static void InCallback(int fd, int event, void * user_data)
         EV_LOG(kInfo, "recv %d bytes", conn->recv_cursor);
 
         if (conn->recv_cursor >= 4
-          && strncmp(&conn->recv_buf[conn->recv_cursor-4], "\r\n\r\n", 4) == 0)
+            && strncmp(&conn->recv_buf[conn->recv_cursor-4], "\r\n\r\n", 4) == 0)
         {
           EV_LOG(kInfo, "recv OK", conn->recv_cursor);
           goto err;

@@ -1,82 +1,82 @@
 /** @file
-* @brief scoped ptr
-* @author zhangyafeikimi@gmail.com
-* @date
-* @version
-*
-*/
+ * @brief scoped ptr
+ * @author zhangyafeikimi@gmail.com
+ * @date
+ * @version
+ *
+ */
 #ifndef LIBEV_SCOPED_PTR_H
 #define LIBEV_SCOPED_PTR_H
 
 namespace libev {
 
   template<class T>
-  class ScopedPtr
-  {
-  private:
-    ScopedPtr(const ScopedPtr&);
-    ScopedPtr& operator=(const ScopedPtr&);
-
-  public:
-    typedef ScopedPtr<T> self_type;
-    typedef T * pointer;
-    typedef T& reference;
-
-  private:
-    pointer px_;
-
-  public:
-    explicit ScopedPtr(pointer p = 0): px_(p)
+    class ScopedPtr
     {
-    }
+      private:
+        ScopedPtr(const ScopedPtr&);
+        ScopedPtr& operator=(const ScopedPtr&);
 
-    ~ScopedPtr()
-    {
-      delete px_;
-    }
+      public:
+        typedef ScopedPtr<T> self_type;
+        typedef T * pointer;
+        typedef T& reference;
 
-    void reset(pointer p = 0)
-    {
-      if (p == px_)
-        return;
+      private:
+        pointer px_;
 
-      self_type(p).swap(*this);
-    }
+      public:
+        explicit ScopedPtr(pointer p = 0): px_(p)
+      {
+      }
 
-    reference operator*() const
-    {
-      return *px_;
-    }
+        ~ScopedPtr()
+        {
+          delete px_;
+        }
 
-    pointer operator->() const
-    {
-      return px_;
-    }
+        void reset(pointer p = 0)
+        {
+          if (p == px_)
+            return;
 
-    pointer get() const
-    {
-      return px_;
-    }
+          self_type(p).swap(*this);
+        }
 
-    operator bool () const
-    {
-      return px_ != 0;
-    }
+        reference operator*() const
+        {
+          return *px_;
+        }
 
-    void swap(self_type& b)
-    {
-      T * tmp = px_;
-      px_ = b.px_;
-      b.px_ = tmp;
-    }
+        pointer operator->() const
+        {
+          return px_;
+        }
 
-    friend inline void swap(self_type& a, self_type& b)
-    {
-      T * tmp = a.px_;
-      a.px_ = b.px_;
-      b.px_ = tmp;
-    }
-  };
+        pointer get() const
+        {
+          return px_;
+        }
+
+        operator bool () const
+        {
+          return px_ != 0;
+        }
+
+        void swap(self_type& b)
+        {
+          T * tmp = px_;
+          px_ = b.px_;
+          b.px_ = tmp;
+        }
+
+        friend inline void swap(self_type& a, self_type& b)
+        {
+          T * tmp = a.px_;
+          a.px_ = b.px_;
+          b.px_ = tmp;
+        }
+    };
 }
 
 #endif

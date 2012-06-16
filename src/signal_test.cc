@@ -1,10 +1,10 @@
 /** @file
-* @brief test signal events
-* @author zhangyafeikimi@gmail.com
-* @date
-* @version
-*
-*/
+ * @brief test signal events
+ * @author zhangyafeikimi@gmail.com
+ * @date
+ * @version
+ *
+ */
 #include "ev.h"
 #include "log.h"
 #include "scoped_ptr.h"

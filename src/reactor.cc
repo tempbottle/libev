@@ -1,10 +1,10 @@
 /** @file
-* @brief reactor
-* @author zhangyafeikimi@gmail.com
-* @date
-* @version
-*
-*/
+ * @brief reactor
+ * @author zhangyafeikimi@gmail.com
+ * @date
+ * @version
+ *
+ */
 #include "ev.h"
 #include "log.h"
 #include "heap.h"
@@ -20,87 +20,87 @@ namespace libev {
 
   class ReactorImpl
   {
-  private:
-    DISALLOW_COPY_AND_ASSIGN(ReactorImpl);
+    private:
+      DISALLOW_COPY_AND_ASSIGN(ReactorImpl);
 
-    // members about signal events
-    int sigfd_;
-    sigset_t sigset_;
-    sigset_t old_sigset_;
-    int sig_ev_refcount_[_NSIG];
+      // members about signal events
+      int sigfd_;
+      sigset_t sigset_;
+      sigset_t old_sigset_;
+      int sig_ev_refcount_[_NSIG];
 
-    // members about timer events
-    int timerfd_;
-    Heap min_time_heap_;
+      // members about timer events
+      int timerfd_;
+      Heap min_time_heap_;
 
-    // members about io events
-    struct IOEvent
-    {
-      Event * event_in;
-      Event * event_out;
-      IOEvent() : event_in(0), event_out(0) {}
-    };
-    int epfd_;
-    std::vector<IOEvent> fd_2_io_ev_;// fd to IOEvent array
-    std::vector<epoll_event> ep_ev_;// for epoll_wait
+      // members about io events
+      struct IOEvent
+      {
+        Event * event_in;
+        Event * event_out;
+        IOEvent() : event_in(0), event_out(0) {}
+      };
+      int epfd_;
+      std::vector<IOEvent> fd_2_io_ev_;// fd to IOEvent array
+      std::vector<epoll_event> ep_ev_;// for epoll_wait
 
-    // common members
-    List ev_list_;// event list
-    List sig_ev_list_;// signal event list
-    List active_ev_list_;// active event list
-    Interrupter interrupter_;
+      // common members
+      List ev_list_;// event list
+      List sig_ev_list_;// signal event list
+      List active_ev_list_;// active event list
+      Interrupter interrupter_;
 
-    // temporary members helping invoke callback
-    int ev_cleaned_;// the event is cleaned
-    int ev_canceled_;// the event is canceled by user inside its callback
+      // temporary members helping invoke callback
+      int ev_cleaned_;// the event is cleaned
+      int ev_canceled_;// the event is canceled by user inside its callback
 
-  private:
-    void AddSignalRef(int signum);
-    void ReleaseSignalRef(int signum);
-    void ScheduleTimer();
-    void ResizeIOEvent(int fd);
+    private:
+      void AddSignalRef(int signum);
+      void ReleaseSignalRef(int signum);
+      void ScheduleTimer();
+      void ResizeIOEvent(int fd);
 
-    // add/del 'ev' to/from 'ev_list_' or 'sig_ev_list_' according to its type
-    void AddToList(Event * ev);
-    void DelFromList(Event * ev);
-    // setup/cleanup 'ev'(mainly affairs about system) according to its type
-    int Setup(Event * ev);
-    void CleanUp(Event * ev);
-    // cancel 'ev' inside callback
-    void CancelInsideCB(Event * ev);
-    // cancel 'ev' outside callback
-    void CancelOutsideCB(Event * ev);
-    // cancel all events
-    void CancelAll();
+      // add/del 'ev' to/from 'ev_list_' or 'sig_ev_list_' according to its type
+      void AddToList(Event * ev);
+      void DelFromList(Event * ev);
+      // setup/cleanup 'ev'(mainly affairs about system) according to its type
+      int Setup(Event * ev);
+      void CleanUp(Event * ev);
+      // cancel 'ev' inside callback
+      void CancelInsideCB(Event * ev);
+      // cancel 'ev' outside callback
+      void CancelOutsideCB(Event * ev);
+      // cancel all events
+      void CancelAll();
 
-    // invoke callback of 'ev'
-    void InvokeCallback(Event * ev);
+      // invoke callback of 'ev'
+      void InvokeCallback(Event * ev);
 
-    void OnSignalReadable();
-    void OnTimerReadable();
+      void OnSignalReadable();
+      void OnTimerReadable();
 
-    // poll and execute ready events
-    // if 'limit' > 0, execute at most 'limit' ready events
-    // if 'limit' == 0, execute all ready events
-    // if 'blocking' == 1, run until no new ready events, or until interrupted
-    // if 'blocking' == 0, run until no events, or until interrupted
-    // return the number of executed event
-    int PollImpl(int limit, int blocking);
+      // poll and execute ready events
+      // if 'limit' > 0, execute at most 'limit' ready events
+      // if 'limit' == 0, execute all ready events
+      // if 'blocking' == 1, run until no new ready events, or until interrupted
+      // if 'blocking' == 0, run until no events, or until interrupted
+      // return the number of executed event
+      int PollImpl(int limit, int blocking);
 
-  public:
-    ReactorImpl();
-    ~ReactorImpl();
+    public:
+      ReactorImpl();
+      ~ReactorImpl();
 
-    int Init();
-    void UnInit();
+      int Init();
+      void UnInit();
 
-    int Add(Event * ev);
-    int Del(Event * ev);
-    int Cancel(Event * ev);
+      int Add(Event * ev);
+      int Del(Event * ev);
+      int Cancel(Event * ev);
 
-    int Poll(int limit);
-    int Run(int limit);
-    int Stop();
+      int Poll(int limit);
+      int Run(int limit);
+      int Stop();
   };
 
 
@@ -155,7 +155,7 @@ namespace libev {
     timerspec.it_interval.tv_nsec = 0;
 
     EV_LOG(kDebug, "timerfd_settime: seconds=%ld nanoseconds=%ld",
-      static_cast<long>(timerspec.it_value.tv_sec), timerspec.it_value.tv_nsec);
+        static_cast<long>(timerspec.it_value.tv_sec), timerspec.it_value.tv_nsec);
     EV_VERIFY(timerfd_settime(timerfd_, TFD_TIMER_ABSTIME, &timerspec, 0) != -1);
   }
 

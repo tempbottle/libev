@@ -1,10 +1,10 @@
 /** @file
-* @brief log
-* @author zhangyafeikimi@gmail.com
-* @date
-* @version
-*
-*/
+ * @brief log
+ * @author zhangyafeikimi@gmail.com
+ * @date
+ * @version
+ *
+ */
 #include "log.h"
 #include "scoped_ptr.h"
 #include "header.h"
@@ -37,71 +37,71 @@ namespace libev {
 
   class Log::Impl
   {
-  private:
-    int level_;
-    int flags_;
-    FILE * fp_;
+    private:
+      int level_;
+      int flags_;
+      FILE * fp_;
 
-  public:
-    Impl(int level, int flags, const char * logfile, const char * syslog_ident)
-      :level_(level), flags_(flags), fp_(0)
-    {
-      if (flags_ & kSysLog)
+    public:
+      Impl(int level, int flags, const char * logfile, const char * syslog_ident)
+        :level_(level), flags_(flags), fp_(0)
       {
-        if (syslog_ident)
-          openlog(syslog_ident, LOG_PID | LOG_NDELAY | LOG_NOWAIT, LOG_USER);
-        else
-          flags_ &= ~kSysLog;
+        if (flags_ & kSysLog)
+        {
+          if (syslog_ident)
+            openlog(syslog_ident, LOG_PID | LOG_NDELAY | LOG_NOWAIT, LOG_USER);
+          else
+            flags_ &= ~kSysLog;
+        }
+
+        if ((flags_ & kLogFile) && logfile)
+          fp_ = fopen(logfile, "a");
       }
 
-      if ((flags_ & kLogFile) && logfile)
-        fp_ = fopen(logfile, "a");
-    }
-
-    ~Impl()
-    {
-      if (fp_)
-        fclose(fp_);
-
-      if (flags_ & kSysLog)
-        closelog();
-    }
-
-    int Printf(int level, const char * content, int size)
-    {
-      if (flags_ & kSysLog)
-        syslog(s_log_level_map[level], "%.*s\n", size, content);
-
-      if (flags_ & kStdout)
+      ~Impl()
       {
-        fprintf(stdout, "%.*s\n", size, content);
-        fflush(stdout);
+        if (fp_)
+          fclose(fp_);
+
+        if (flags_ & kSysLog)
+          closelog();
       }
 
-      if (flags_ & kStderr)
+      int Printf(int level, const char * content, int size)
       {
-        fprintf(stderr, "%.*s\n", size, content);
-        fflush(stderr);
+        if (flags_ & kSysLog)
+          syslog(s_log_level_map[level], "%.*s\n", size, content);
+
+        if (flags_ & kStdout)
+        {
+          fprintf(stdout, "%.*s\n", size, content);
+          fflush(stdout);
+        }
+
+        if (flags_ & kStderr)
+        {
+          fprintf(stderr, "%.*s\n", size, content);
+          fflush(stderr);
+        }
+
+        if (fp_)
+        {
+          fprintf(fp_, "%.*s\n", size, content);
+          fflush(fp_);
+        }
+
+        return 0;
       }
 
-      if (fp_)
+      int GetLevel()const
       {
-        fprintf(fp_, "%.*s\n", size, content);
-        fflush(fp_);
+        return level_;
       }
 
-      return 0;
-    }
-
-    int GetLevel()const
-    {
-      return level_;
-    }
-
-    void SetLevel(int level)
-    {
-      level_ = level;
-    }
+      void SetLevel(int level)
+      {
+        level_ = level;
+      }
   };
 
 
@@ -146,7 +146,7 @@ namespace libev {
       if (bytes_left <= 0) goto extend_buf;
 
       n = snprintf(p, bytes_left, ".%06ld [%d/%d] [%s]: ",
-        tv.tv_usec, pid, static_cast<int>(syscall(SYS_gettid)), s_log_level_string[level]);
+          tv.tv_usec, pid, static_cast<int>(syscall(SYS_gettid)), s_log_level_string[level]);
 
       if (n < 0) goto format_error;
       bytes_left -= n;
@@ -216,7 +216,7 @@ format_error:
   static ScopedPtr<Log> s_log;
 
   void InitGlobalLog(int level, int flags,
-    const char * logfile, const char * syslog_ident)
+      const char * logfile, const char * syslog_ident)
   {
     s_log.reset(new Log(level, flags, logfile, syslog_ident));// may throw(caught)
   }
