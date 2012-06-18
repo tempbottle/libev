@@ -45,8 +45,7 @@ namespace libev {
         size_t min_child = (hole_index + 1) << 1;
         while (min_child <= heap_.size())
         {
-          //lint -e514
-          min_child -= (min_child == heap_.size()
+          min_child -= /*lint --e(514) */(min_child == heap_.size()
               || greater(heap_[min_child], heap_[min_child - 1]));
           if(!(greater(node, heap_[min_child])))
             break;

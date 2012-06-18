@@ -377,14 +377,12 @@ namespace libev {
 
     for (node = ev_list_.front(); node != ev_list_.end() ; node = node->next)
     {
-      //lint -e826
       ev = ev_container_of(node, Event, _all);
       CancelOutsideCB(ev);
     }
 
     for (node = sig_ev_list_.front(); node != sig_ev_list_.end() ; node = node->next)
     {
-      //lint -e826
       ev = ev_container_of(node, Event, _all);
       CancelOutsideCB(ev);
     }
@@ -421,9 +419,7 @@ namespace libev {
 
     ev->flags |= kInCallback;
     ev->callback(ev->fd, ev->real_event, ev->user_data);
-    //lint -e774
-    //lint -e845
-    if (!put_back || ev_canceled_)
+    if /*lint --e(774,845) */(!put_back || ev_canceled_)
       return;
     ev->flags &= ~kInCallback;
 

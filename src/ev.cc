@@ -21,7 +21,7 @@ namespace libev {
   {
   }
 
-  Event::Event(timespec * _timeout, ev_callback _callback, void * _udata)
+  Event::Event(const timespec * _timeout, ev_callback _callback, void * _udata)
     : event(kEvTimer), callback(_callback), user_data(_udata),
     real_event(0), triggered_times(0), flags(0), reactor(0)
   {

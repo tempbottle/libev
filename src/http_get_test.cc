@@ -201,8 +201,7 @@ static void HttpGet(const char * url)
   s4.sin_family = AF_INET;
   s4.sin_port = htons(80);
   memcpy(&s4.sin_addr, host->h_addr_list[0], 4);
-  //lint -e740
-  res = connect(sockfd, (const struct sockaddr *)&s4, sizeof(s4));
+  res = connect(sockfd, /*lint -e(740) */(const struct sockaddr *)&s4, sizeof(s4));
   EV_VERIFY(res == -1 && errno == EINPROGRESS);
 
   conn->reactor = reactor.get();

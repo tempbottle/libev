@@ -70,7 +70,6 @@ namespace libev {
           b.px_ = tmp;
         }
 
-        //lint -e1727
         friend inline void swap(self_type& a, self_type& b)
         {
           T * tmp = a.px_;

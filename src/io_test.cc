@@ -39,8 +39,7 @@ static int connect_host(int sockfd, const char * hostname, unsigned short port)
   s4.sin_family = AF_INET;
   s4.sin_port = htons(port);
   memcpy(&s4.sin_addr, host->h_addr_list[0], 4);
-  //lint -e740
-  return connect(sockfd, (const struct sockaddr *)&s4, sizeof(s4));
+  return connect(sockfd, /*lint -e(740) */(const struct sockaddr *)&s4, sizeof(s4));
 }
 
 static void Test0_Callback(int /*fd*/, int event, void * user_data)

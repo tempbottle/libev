@@ -1,7 +1,9 @@
 -e451//header guard
 -e537//header re-included
+
 -e457//thread
 -e459//thread
+
 -e641//converting enum to int
 -e655//bit-wise operation of enum
 -e717//do ... while(0)
@@ -13,26 +15,20 @@
 -e1736//redundant access specifier
 -e1793//pass temporary objects as parameters
 
--esym(1401,libev::Event::*)
--esym(1401,libev::ReactorImpl::*)
+//our code
 -esym(534,libev::Log::Printf)
 -esym(534,safe_close)
+-emacro(826,ev_container_of)
+-esym(1401,libev::Event::*)
+-esym(1401,libev::ReactorImpl::*)
+-esym(1727,libev::swap)
 
-//library function with trivial return values
--esym(534,sleep)
--esym(534,fflush)
--esym(534,gettimeofday)
--esym(534,localtime_r)
--esym(534,sigaddset)
--esym(534,sigdelset)
--esym(534,sigemptyset)
--esym(534,kill)
-
-//va_start
+//libraries
+-esym(526,*__builtin_va_start)
 -emacro(530,va_start)
 -emacro(534,va_start)
+-esym(534,sleep,fflush,gettimeofday,localtime_r,sigaddset,sigdelset,sigemptyset,kill)
 -esym(628,*__builtin_va_start)
--esym(526,*__builtin_va_start)
 
 //multi files
 -esym(14,main)

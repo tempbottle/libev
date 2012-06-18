@@ -78,7 +78,7 @@ namespace libev {
     public:
       Event();
       Event(int _fd, int _event, ev_callback _callback, void * _udata);
-      Event(timespec * _timeout, ev_callback _callback, void * _udata);
+      Event(const timespec * _timeout, ev_callback _callback, void * _udata);
       int Del();
       int Cancel();
 

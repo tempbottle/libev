@@ -53,7 +53,7 @@ namespace libev {
         __push(_new, &head_, head_.next);
       }
 
-      static void erase(ListNode * node)//lint -e818
+      static void erase(ListNode * node)/*lint -e(818) */
       {
         node->next->prev = node->prev;
         node->prev->next = node->next;
@@ -91,7 +91,7 @@ namespace libev {
 
       ListNode * end()
       {
-        //lint -e1536
+        /*lint -e(1536) */
         return &head_;
       }
 
