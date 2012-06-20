@@ -91,8 +91,7 @@ namespace libev {
 
       ListNode * end()
       {
-        /*lint -e(1536) */
-        return &head_;
+        return /*lint -e(1536) */&head_;
       }
 
       const ListNode * end()const
